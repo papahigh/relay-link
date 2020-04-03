@@ -12,9 +12,12 @@ export function toLink(handler: RequestHandler | RelayLink) {
   return typeof handler === 'function' ? new RelayLink(handler) : handler
 }
 
-export function from(links: (RequestHandler | RelayLink)[]): RelayLink {
+export function from(links: (RequestHandler | RelayLink | false)[]): RelayLink {
   if (links.length === 0) return new RelayLink(empty)
-  return links.map(toLink).reduce((x, y) => x.concat(y))
+  return links
+    .filter(Boolean)
+    .map(toLink)
+    .reduce((x, y) => x.concat(y))
 }
 
 export function fromError<TResponse = OperationResponse>(error: Error) {

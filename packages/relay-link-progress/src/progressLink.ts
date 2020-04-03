@@ -25,27 +25,33 @@ export class ProgressLink extends RelayLink {
     const contentLengthHeader = response.headers.get(this.contentLengthHeader)
     let totalLength = 0
     if (contentLengthHeader != null) totalLength = parseInt(contentLengthHeader, 10)
-    const reader = response.body?.getReader()
-    const chunks: Uint8Array[] = []
-    if (reader) {
-      let progress = 0
-      let completed = false
-      do {
-        const { value, done } = await reader.read()
-        if (value) {
-          chunks.push(value)
-          progress += value.length
-          notifyListeners(progress, totalLength)
+    const isSupported = typeof response.body?.getReader === 'function'
+    if (isSupported) {
+      const reader = response.body?.getReader()
+      const chunks: Uint8Array[] = []
+      if (reader) {
+        let progress = 0
+        let completed = false
+        do {
+          const { value, done } = await reader.read()
+          if (value) {
+            chunks.push(value)
+            progress += value.length
+            notifyListeners(progress, totalLength)
+          }
+          completed = done
+        } while (!completed)
+        let result = ''
+        const decoder = new TextDecoder('utf-8')
+        for (const chunk of chunks) {
+          result += decoder.decode(chunk, { stream: true })
         }
-        completed = done
-      } while (!completed)
-      let result = ''
-      const decoder = new TextDecoder('utf-8')
-      for (const chunk of chunks) {
-        result += decoder.decode(chunk, { stream: true })
+        result += decoder.decode()
+        return result
       }
-      result += decoder.decode()
-      return result
+    } else {
+      notifyListeners(0, totalLength)
+      return await response.text().finally(() => notifyListeners(totalLength, totalLength))
     }
     return EMPTY
   }

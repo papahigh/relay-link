@@ -1,6 +1,6 @@
 {
   "name": "relay-link",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Flexible, lightweight transport layer for Relay",
   "license": "MIT",
   "author": "Evans Hauser <evanshauser@gmail.com>",

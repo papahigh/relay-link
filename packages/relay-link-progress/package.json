@@ -1,6 +1,6 @@
 {
   "name": "relay-link-progress",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Relay Link for tracking download progress",
   "license": "MIT",
   "main": "./lib/index.js",
