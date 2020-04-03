@@ -1,3 +1,68 @@
 {
-  "name": "relay-link-upload"
+  "name": "relay-link-ssr",
+  "version": "1.0.0",
+  "description": "Relay Link for Server-Side Rendering",
+  "license": "MIT",
+  "main": "./lib/index.js",
+  "module": "./lib/bundle.esm.js",
+  "typings": "./lib/index.d.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/papahigh/relay-link.git"
+  },
+  "bugs": {
+    "url": "https://github.com/papahigh/relay-link/issues"
+  },
+  "homepage": "https://github.com/papahigh/relay-link#readme",
+  "keywords": [
+    "Relay",
+    "GraphQL",
+    "Network",
+    "Server",
+    "server-side-rendering",
+    "SSR"
+  ],
+  "scripts": {
+    "build": "tsc && rollup -c",
+    "coverage": "jest --coverage",
+    "clean": "rimraf lib/* && rimraf coverage/*",
+    "filesize": "../../scripts/minify",
+    "lint": "tslint -c \"../../tslint.json\" -p tsconfig.json -c ../../tslint.json src/*.ts",
+    "prebuild": "yarn clean",
+    "prepare": "yarn build",
+    "watch": "tsc -w -p . & rollup -c -w"
+  },
+  "dependencies": {
+    "relay-link": "1.0.0"
+  },
+  "peerDependencies": {
+    "relay-runtime": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/relay-runtime": "^8.0.7",
+    "relay-runtime": "^9.0.0"
+  },
+  "jest": {
+    "globals": {
+      "ts-jest": {
+        "diagnostics": false
+      }
+    },
+    "transform": {
+      ".(ts|tsx)": "ts-jest"
+    },
+    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(ts|tsx|js)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "json"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "sharedHttpTests.ts"
+    ],
+    "testURL": "http://localhost"
+  }
 }

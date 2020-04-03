@@ -1,8 +1,9 @@
-import { SubscriptionClient } from 'subscriptions-transport-ws';
-import { Observable, execute } from 'apollo-link';
-import { ExecutionResult } from 'graphql';
+import { DocumentNode } from 'graphql'
+import { execute, OperationKind } from 'relay-link'
+import { Observable, RequestParameters } from 'relay-runtime'
+import { SubscriptionClient } from 'relay-transport-ws'
 
-import { WebSocketLink } from '../webSocketLink';
+import { WebSocketLink } from '../webSocketLink'
 
 const query = `
   query SampleQuery {
@@ -10,7 +11,7 @@ const query = `
       id
     }
   }
-`;
+`
 
 const mutation = `
   mutation SampleMutation {
@@ -18,7 +19,7 @@ const mutation = `
       id
     }
   }
-`;
+`
 
 const subscription = `
   subscription SampleSubscription {
@@ -26,97 +27,83 @@ const subscription = `
       id
     }
   }
-`;
+`
+
+export function createRequest(
+  queryOrDocument: string | DocumentNode,
+  operationKind = OperationKind.SUBSCRIPTION,
+): RequestParameters {
+  return {
+    id: undefined,
+    name: undefined as any,
+    text: queryOrDocument as any,
+    operationKind,
+    metadata: {},
+  }
+}
 
 describe('WebSocketLink', () => {
-  it('constructs', () => {
-    const client: any = {};
-    client.__proto__ = SubscriptionClient.prototype;
-    expect(() => new WebSocketLink(client)).not.toThrow();
-  });
-
-  // TODO some sort of dependency injection
-
-  // it('should pass the correct initialization parameters to the Subscription Client', () => {
-  // });
+  it('should construct', () => {
+    const client: any = {}
+    client.__proto__ = SubscriptionClient.prototype
+    expect(() => new WebSocketLink(client)).not.toThrow()
+  })
 
   it('should call request on the client for a query', done => {
-    const result = { data: { data: 'result' } };
-    const client: any = {};
-    const observable = Observable.of(result);
-    client.__proto__ = SubscriptionClient.prototype;
-    client.request = jest.fn();
-    client.request.mockReturnValueOnce(observable);
-    const link = new WebSocketLink(client);
+    const result = { data: { data: 'result' } }
+    const client: any = {}
+    const observable = Observable.from(result)
+    client.__proto__ = SubscriptionClient.prototype
+    client.request = jest.fn()
+    client.request.mockReturnValueOnce(observable)
 
-    const obs = execute(link, { query });
-    expect(obs).toEqual(observable);
-    obs.subscribe(data => {
-      expect(data).toEqual(result);
-      expect(client.request).toHaveBeenCalledTimes(1);
-      done();
-    });
-  });
+    const link = new WebSocketLink(client)
+    execute(link, createRequest(query), {}, {}).subscribe({
+      next: data => {
+        expect(data).toEqual(result)
+        expect(client.request).toHaveBeenCalledTimes(1)
+        done()
+      },
+    })
+  })
 
   it('should call query on the client for a mutation', done => {
-    const result = { data: { data: 'result' } };
-    const client: any = {};
-    const observable = Observable.of(result);
-    client.__proto__ = SubscriptionClient.prototype;
-    client.request = jest.fn();
-    client.request.mockReturnValueOnce(observable);
-    const link = new WebSocketLink(client);
+    const result = { data: { data: 'result' } }
+    const client: any = {}
+    const observable = Observable.from(result)
+    client.__proto__ = SubscriptionClient.prototype
+    client.request = jest.fn()
+    client.request.mockReturnValueOnce(observable)
 
-    const obs = execute(link, { query: mutation });
-    expect(obs).toEqual(observable);
-    obs.subscribe(data => {
-      expect(data).toEqual(result);
-      expect(client.request).toHaveBeenCalledTimes(1);
-      done();
-    });
-  });
-
-  it('should call request on the subscriptions client for subscription', done => {
-    const result = { data: { data: 'result' } };
-    const client: any = {};
-    const observable = Observable.of(result);
-    client.__proto__ = SubscriptionClient.prototype;
-    client.request = jest.fn();
-    client.request.mockReturnValueOnce(observable);
-    const link = new WebSocketLink(client);
-
-    const obs = execute(link, { query: mutation });
-    expect(obs).toEqual(observable);
-    obs.subscribe(data => {
-      expect(data).toEqual(result);
-      expect(client.request).toHaveBeenCalledTimes(1);
-      done();
-    });
-  });
+    const link = new WebSocketLink(client)
+    execute(link, createRequest(mutation, OperationKind.MUTATION), {}, {}).subscribe({
+      next: data => {
+        expect(data).toEqual(result)
+        expect(client.request).toHaveBeenCalledTimes(1)
+        done()
+      },
+    })
+  })
 
   it('should call next with multiple results for subscription', done => {
-    const results = [
-      { data: { data: 'result1' } },
-      { data: { data: 'result2' } },
-    ];
-    const client: any = {};
-    client.__proto__ = SubscriptionClient.prototype;
+    const results = [{ data: { data: 'result1' } }, { data: { data: 'result2' } }]
+    const client: any = {}
+    client.__proto__ = SubscriptionClient.prototype
     client.request = jest.fn(() => {
-      const copy = [...results];
-      return new Observable<ExecutionResult>(observer => {
-        observer.next(copy[0]);
-        observer.next(copy[1]);
-      });
-    });
+      const copy = [...results]
+      return Observable.create(sink => {
+        sink.next(copy[0])
+        sink.next(copy[1])
+      })
+    })
 
-    const link = new WebSocketLink(client);
-
-    execute(link, { query: subscription }).subscribe(data => {
-      expect(client.request).toHaveBeenCalledTimes(1);
-      expect(data).toEqual(results.shift());
-      if (results.length === 0) {
-        done();
-      }
-    });
-  });
-});
+    const link = new WebSocketLink(client)
+    execute(link, createRequest(subscription, OperationKind.SUBSCRIPTION), {}, {}).subscribe({
+      next: data => {
+        expect(client.request).toHaveBeenCalledTimes(1)
+        expect(data).toEqual(results.shift())
+        if (results.length === 0) done()
+      },
+    })
+  })
+})

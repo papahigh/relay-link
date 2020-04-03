@@ -1,4 +1,7 @@
 {
+  "linterOptions": {
+    "exclude": ["./packages/*/lib/**"]
+  },
   "rules": {
     "ban": false,
     "class-name": true,
@@ -30,7 +33,7 @@
     "no-construct": true,
     "no-debugger": true,
     "no-duplicate-variable": true,
-    "no-empty": true,
+    "no-empty": false,
     "no-eval": true,
     "no-inferrable-types": false,
     "no-internal-module": true,
@@ -55,11 +58,6 @@
       "variable-declaration",
       "member-variable-declaration"
     ],
-    "variable-name": [
-      true,
-      "check-format",
-      "allow-leading-underscore",
-      "ban-keywords"
-    ]
+    "variable-name": [true, "check-format", "allow-leading-underscore", "ban-keywords"]
   }
 }

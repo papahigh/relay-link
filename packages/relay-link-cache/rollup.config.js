@@ -1,3 +1,3 @@
 import build from '../../rollup.config';
 
-export default build('progress');
+export default build('cache');

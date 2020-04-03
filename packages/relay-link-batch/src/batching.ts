@@ -1,21 +1,23 @@
-import { Observable, Operation, NextLink, FetchResult } from 'apollo-link';
+import { Operation, NextLink, OperationResponse } from 'relay-link'
+import { Observable } from 'relay-runtime'
+import { RelayObservable } from 'relay-runtime/lib/network/RelayObservable'
 
 export type BatchHandler = (
   operations: Operation[],
   forward?: (NextLink | undefined)[],
-) => Observable<FetchResult[]> | null;
+) => Observable<OperationResponse[]>
 
 export interface BatchableRequest {
-  operation: Operation;
-  forward?: NextLink;
+  operation: Operation
+  forward?: NextLink
 
   // promise is created when the query fetch request is
   // added to the queue and is resolved once the result is back
   // from the server.
-  observable?: Observable<FetchResult>;
-  next?: Array<(result: FetchResult) => void>;
-  error?: Array<(error: Error) => void>;
-  complete?: Array<() => void>;
+  observable?: Observable<OperationResponse>
+  next?: Array<(result: OperationResponse) => void>
+  error?: Array<(error: Error) => void>
+  complete?: Array<() => void>
 }
 
 // QueryBatcher doesn't fire requests immediately. Requests that were enqueued within
@@ -24,14 +26,14 @@ export interface BatchableRequest {
 export class OperationBatcher {
   // Queue on which the QueryBatcher will operate on a per-tick basis.
   // Public only for testing
-  public queuedRequests: Map<string, BatchableRequest[]>;
+  public readonly queuedRequests: Map<string, BatchableRequest[]> = new Map()
 
-  private batchInterval: number;
-  private batchMax: number;
+  private readonly batchInterval?: number
+  private readonly batchMax: number
 
   //This function is called to the queries in the queue to the server.
-  private batchHandler: BatchHandler;
-  private batchKey: (operation: Operation) => string;
+  private readonly batchHandler: BatchHandler
+  private readonly batchKey: (operation: Operation) => string
 
   constructor({
     batchInterval,
@@ -39,156 +41,137 @@ export class OperationBatcher {
     batchHandler,
     batchKey,
   }: {
-    batchInterval?: number;
-    batchMax?: number;
-    batchHandler: BatchHandler;
-    batchKey?: (operation: Operation) => string;
+    batchInterval?: number
+    batchMax?: number
+    batchHandler: BatchHandler
+    batchKey?: (operation: Operation) => string
   }) {
-    this.queuedRequests = new Map();
-    this.batchInterval = batchInterval;
-    this.batchMax = batchMax || 0;
-    this.batchHandler = batchHandler;
-    this.batchKey = batchKey || (() => '');
+    this.batchInterval = batchInterval
+    this.batchMax = batchMax || 0
+    this.batchHandler = batchHandler
+    this.batchKey = batchKey || (() => '')
   }
 
-  public enqueueRequest(request: BatchableRequest): Observable<FetchResult> {
-    const requestCopy = {
-      ...request,
-    };
-    let queued = false;
+  public enqueueRequest(request: BatchableRequest): Observable<OperationResponse> {
+    const requestCopy = { ...request }
+    let queued = false
 
-    const key = this.batchKey(request.operation);
+    const key = this.batchKey(request.operation)
 
     if (!requestCopy.observable) {
-      requestCopy.observable = new Observable<FetchResult>(observer => {
+      requestCopy.observable = Observable.create(sink => {
         if (!this.queuedRequests.has(key)) {
-          this.queuedRequests.set(key, []);
+          this.queuedRequests.set(key, [])
         }
 
         if (!queued) {
-          this.queuedRequests.get(key).push(requestCopy);
-          queued = true;
+          this.queuedRequests.get(key)?.push(requestCopy)
+          queued = true
         }
 
         //called for each subscriber, so need to save all listeners(next, error, complete)
-        requestCopy.next = requestCopy.next || [];
-        if (observer.next) requestCopy.next.push(observer.next.bind(observer));
+        requestCopy.next = requestCopy.next || []
+        if (sink.next) requestCopy.next.push(sink.next.bind(sink))
 
-        requestCopy.error = requestCopy.error || [];
-        if (observer.error)
-          requestCopy.error.push(observer.error.bind(observer));
+        requestCopy.error = requestCopy.error || []
+        if (sink.error) requestCopy.error.push(sink.error.bind(sink))
 
-        requestCopy.complete = requestCopy.complete || [];
-        if (observer.complete)
-          requestCopy.complete.push(observer.complete.bind(observer));
+        requestCopy.complete = requestCopy.complete || []
+        if (sink.complete) requestCopy.complete.push(sink.complete.bind(sink))
 
         // The first enqueued request triggers the queue consumption after `batchInterval` milliseconds.
-        if (this.queuedRequests.get(key).length === 1) {
-          this.scheduleQueueConsumption(key);
+        if (this.queuedRequests.get(key)?.length === 1) {
+          setTimeout(() => this.scheduleQueueConsumption(key))
         }
 
         // When amount of requests reaches `batchMax`, trigger the queue consumption without waiting on the `batchInterval`.
-        if (this.queuedRequests.get(key).length === this.batchMax) {
-          this.consumeQueue(key);
+        if (this.queuedRequests.get(key)?.length === this.batchMax) {
+          this.consumeQueue(key)
         }
-      });
+      })
     }
 
-    return requestCopy.observable;
+    return requestCopy.observable
   }
 
   // Consumes the queue.
   // Returns a list of promises (one for each query).
-  public consumeQueue(
-    key?: string,
-  ): (Observable<FetchResult> | undefined)[] | undefined {
-    const requestKey = key || '';
-    const queuedRequests = this.queuedRequests.get(requestKey);
+  public consumeQueue(key?: string): (Observable<OperationResponse> | undefined)[] | undefined {
+    const requestKey = key || ''
+    const queuedRequests = this.queuedRequests.get(requestKey)
 
-    if (!queuedRequests) {
-      return;
-    }
+    if (!queuedRequests?.length) return
 
-    this.queuedRequests.delete(requestKey);
+    this.queuedRequests.delete(requestKey)
 
-    const requests: Operation[] = queuedRequests.map(
-      queuedRequest => queuedRequest.operation,
-    );
+    const requests: Operation[] = queuedRequests.map(queuedRequest => queuedRequest.operation)
 
-    const forwards: NextLink[] = queuedRequests.map(
-      queuedRequest => queuedRequest.forward,
-    );
+    const forwards: NextLink[] = queuedRequests.map(queuedRequest => queuedRequest.forward) as NextLink[]
 
-    const observables: (Observable<FetchResult> | undefined)[] = [];
-    const nexts: any[] = [];
-    const errors: any[] = [];
-    const completes: any[] = [];
-    queuedRequests.forEach((batchableRequest, index) => {
-      observables.push(batchableRequest.observable);
-      nexts.push(batchableRequest.next);
-      errors.push(batchableRequest.error);
-      completes.push(batchableRequest.complete);
-    });
+    const batchedObservable = this.batchHandler(requests, forwards)
+    const observables: Array<RelayObservable<OperationResponse> | undefined> = []
 
-    const batchedObservable =
-      this.batchHandler(requests, forwards) || Observable.of();
+    const nexts: Array<Array<(result: OperationResponse) => void> | undefined> = []
+    const errors: Array<Array<(error: Error) => void> | undefined> = []
+    const completes: Array<Array<() => void> | undefined> = []
+    queuedRequests.forEach(batchableRequest => {
+      observables.push(batchableRequest.observable)
+      nexts.push(batchableRequest.next)
+      errors.push(batchableRequest.error)
+      completes.push(batchableRequest.complete)
+    })
 
-    const onError = error => {
+    const onError = (error: Error) => {
       //each callback list in batch
       errors.forEach(rejecters => {
         if (rejecters) {
           //each subscriber to request
-          rejecters.forEach(e => e(error));
+          rejecters.forEach(e => e(error))
         }
-      });
-    };
+      })
+    }
 
     batchedObservable.subscribe({
       next: results => {
         if (!Array.isArray(results)) {
-          results = [results];
+          results = [results]
         }
 
         if (nexts.length !== results.length) {
           const error = new Error(
-            `server returned results with length ${
-              results.length
-            }, expected length of ${nexts.length}`,
-          );
-          (error as any).result = results;
+            `server returned results with length ${results.length}, expected length of ${nexts.length}`,
+          )
+          ;(error as any).result = results
 
-          return onError(error);
+          return onError(error)
         }
 
         results.forEach((result, index) => {
           if (nexts[index]) {
-            nexts[index].forEach(next => next(result));
+            nexts[index]?.forEach(next => next(result))
           }
-        });
+        })
       },
       error: onError,
       complete: () => {
         completes.forEach(complete => {
           if (complete) {
             //each subscriber to request
-            complete.forEach(c => c());
+            complete.forEach(c => c())
           }
-        });
+        })
       },
-    });
+    })
 
-    return observables;
+    return observables
   }
 
   private scheduleQueueConsumption(key?: string): void {
-    const requestKey = key || '';
+    const requestKey = key || ''
     setTimeout(() => {
-      if (
-        this.queuedRequests.get(requestKey) &&
-        this.queuedRequests.get(requestKey).length
-      ) {
-        this.consumeQueue(requestKey);
+      if (this.queuedRequests.get(requestKey)?.length) {
+        this.consumeQueue(requestKey)
       }
-    }, this.batchInterval);
+    }, this.batchInterval)
   }
 }

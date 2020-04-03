@@ -1,14 +1,14 @@
 ---
-title: apollo-link-batch-http
+title: relay-link-batch-http
 description: Batch multiple operations into a single HTTP request
 ---
 
-`apollo-link-batch-http` is a terminating link that combines multiple GraphQL
+`relay-link-batch-http` is a terminating link that combines multiple GraphQL
 operations into a single HTTP request. This link batches together individual
 operations into an array that is sent to a single GraphQL endpoint.
 
 ```js
-import { BatchHttpLink } from "apollo-link-batch-http";
+import { BatchHttpLink } from "relay-link-batch-http";
 
 const link = new BatchHttpLink({ uri: "/graphql" });
 ```
@@ -18,7 +18,7 @@ const link = new BatchHttpLink({ uri: "/graphql" });
 The batch http link accepts an object with some options to customize the behavior
 of the link. There are two different categories of options: http and batch. The
 http options follow the same structure as the
-[apollo-link-http](http#options):
+[relay-link-http](http#options):
 
 * `uri`: the URI key is a string endpoint -- will default to "/graphql" if not
   specified
@@ -50,7 +50,7 @@ The batch http link relies on having `fetch` present in your runtime environment
 The Batch Http Link currently uses the context in two different ways, per batch
 and per query. The context fields below are used per batch and taken from the first
 operation in the batch. They are applied to the fetch options in a similar
-manner as [apollo-link-http](https://www.apollographql.com/docs/link/links/http.html#context).
+manner as [relay-link-http](https://github.com/papahigh/relay-link/tree/master/packages/relay-link-http).
 
 * `headers`: an object representing values to be sent as headers on the request
 * `credentials`: a string representing the credentials policy you want for the
@@ -63,29 +63,9 @@ manner as [apollo-link-http](https://www.apollographql.com/docs/link/links/http.
 For each query, the `http` field is used to modify each individual query in the
 batch, such as persisted queries (see below)
 
-### Persisted queries
-
-The batch http link supports an advanced GraphQL feature called persisted queries. This allows you to not send the stringified query over the wire, but instead send some kind of identifier of the query. To support this you need to attach the id somewhere to the extensions field and pass the following options to the context:
-
-```js
-operation.setContext({
-  http: {
-    includeExtensions: true,
-    includeQuery: false,
-  }
-})
-```
-
-The `http` object on context currently supports two keys:
-
-* `includeExtensions`: Send the extensions object for this request.
-* `includeQuery`: Don't send the `query` field for this request.
-
-One way to use persisted queries is with [apollo-link-persisted-queries](https://github.com/apollographql/apollo-link-persisted-queries) and [Apollo Engine](https://www.apollographql.com/docs/engine/auto-persisted-queries.html).
-
 ## Errors
 
-The batch http link handles errors on a per batch basis with the same semantics found in [apollo-link-http](http#errors).
+The batch http link handles errors on a per batch basis with the same semantics found in [relay-link-http](http#errors).
 
 ## Custom fetching
 

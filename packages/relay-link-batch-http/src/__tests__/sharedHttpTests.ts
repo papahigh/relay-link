@@ -1,1 +1,1 @@
-../../../apollo-link-http/src/__tests__/sharedHttpTests.ts
+../../../relay-link-http/src/__tests__/sharedHttpTests.ts

@@ -1,13 +1,13 @@
 ---
-title: apollo-link-ws
+title: relay-link-ws
 description: Send GraphQL operations over a WebSocket. Works with GraphQL Subscriptions.
 ---
 
 This link is particularly useful to use GraphQL Subscriptions, but it will also allow you to send GraphQL queries and mutations over WebSockets as well.
 
 ```js
-import { WebSocketLink } from "apollo-link-ws";
-import { SubscriptionClient } from "subscriptions-transport-ws";
+import { WebSocketLink } from "relay-link-ws";
+import { SubscriptionClient } from "relay-transport-ws";
 
 const GRAPHQL_ENDPOINT = "ws://localhost:3000/graphql";
 
@@ -26,4 +26,4 @@ WS Link takes either a subscription client or an object with three options on it
 * `options`: a set of options to pass to a new Subscription Client
 * `webSocketImpl`: a custom WebSocket implementation
 
-By default, this link uses the [subscriptions-transport-ws](https://github.com/apollographql/subscriptions-transport-ws) library for the transport.
+By default, this link uses the [relay-transport-ws](https://github.com/papahigh/relay-transport-ws) library for the transport.

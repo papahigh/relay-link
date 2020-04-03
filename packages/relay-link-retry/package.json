@@ -1,7 +1,7 @@
 {
-  "name": "apollo-link-retry",
-  "version": "2.2.15",
-  "description": "Retry Apollo Link for GraphQL Network Stack",
+  "name": "relay-link-retry",
+  "version": "1.0.0",
+  "description": "Retry Relay Link for GraphQL Network Stack",
   "author": "Evans Hauser <evanshauser@gmail.com>",
   "contributors": [
     "James Baxley <james@meteor.com>",
@@ -16,42 +16,56 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apollographql/apollo-link.git"
+    "url": "git+https://github.com/papahigh/relay-link.git"
   },
   "bugs": {
-    "url": "https://github.com/apollographql/apollo-link/issues"
+    "url": "https://github.com/papahigh/relay-link/issues"
   },
-  "homepage": "https://github.com/apollographql/apollo-link#readme",
+  "homepage": "https://github.com/papahigh/relay-link#readme",
+  "keywords": [
+    "Relay",
+    "GraphQL",
+    "Network",
+    "retry"
+  ],
   "scripts": {
     "build": "tsc && rollup -c",
     "clean": "rimraf lib/* && rimraf coverage/*",
     "coverage": "jest --coverage",
     "filesize": "../../scripts/minify",
     "lint": "tslint -c \"../../tslint.json\" -p tsconfig.json -c ../../tslint.json src/*.ts",
-    "prebuild": "npm run clean",
-    "prepare": "npm run build",
-    "test": "npm run lint && jest",
+    "prebuild": "yarn clean",
+    "prepare": "yarn build",
+    "test": "yarn lint && jest",
     "watch": "tsc -w -p . & rollup -c -w"
   },
   "dependencies": {
-    "@types/zen-observable": "0.8.0",
-    "apollo-link": "file:../apollo-link",
-    "tslib": "^1.9.3"
+    "relay-link": "1.0.0",
+    "tslib": "^1.11.1"
+  },
+  "peerDependencies": {
+    "relay-runtime": "^9.0.0"
   },
   "devDependencies": {
-    "@types/graphql": "14.2.3",
-    "@types/jest": "24.9.0",
-    "graphql": "14.5.8",
-    "graphql-tag": "2.10.1",
-    "jest": "24.9.0",
+    "@types/jest": "^25.1.4",
+    "@types/relay-runtime": "^8.0.7",
+    "graphql": "^14.6.0",
+    "graphql-tag": "^2.10.3",
+    "jest": "^25.2.1",
+    "relay-runtime": "^9.0.0",
     "rimraf": "2.7.1",
     "rollup": "1.29.1",
-    "ts-jest": "22.4.6",
-    "tslint": "5.20.1",
-    "typescript": "3.0.3",
-    "wait-for-observables": "1.0.3"
+    "ts-jest": "^25.2.1",
+    "tslint": "^6.1.0",
+    "typescript": "^3.8.3",
+    "wait-for-observables": "^1.0.3"
   },
   "jest": {
+    "globals": {
+      "ts-jest": {
+        "diagnostics": false
+      }
+    },
     "transform": {
       ".(ts|tsx)": "ts-jest"
     },

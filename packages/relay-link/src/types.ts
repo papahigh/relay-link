@@ -1,37 +1,49 @@
-import Observable from 'zen-observable-ts';
-import { DocumentNode } from 'graphql/language/ast';
-import { ExecutionResult } from 'graphql/execution/execute';
-export { ExecutionResult, DocumentNode };
+import { DocumentNode } from 'graphql/language/ast'
+import { CacheConfig, Variables } from 'relay-runtime'
+import {
+  GraphQLResponseWithData,
+  GraphQLResponseWithoutData,
+  UploadableMap,
+} from 'relay-runtime/lib/network/RelayNetworkTypes'
+import { RelayObservable } from 'relay-runtime/lib/network/RelayObservable'
 
-export interface GraphQLRequest {
-  query: DocumentNode;
-  variables?: Record<string, any>;
-  operationName?: string;
-  context?: Record<string, any>;
-  extensions?: Record<string, any>;
+export enum OperationKind {
+  QUERY = 'query',
+  MUTATION = 'mutation',
+  SUBSCRIPTION = 'subscription',
 }
 
-export interface Operation {
-  query: DocumentNode;
-  variables: Record<string, any>;
-  operationName: string;
-  extensions: Record<string, any>;
-  setContext: (context: Record<string, any>) => Record<string, any>;
-  getContext: () => Record<string, any>;
-  toKey: () => string;
+export interface Operation<TContext = Record<string, any>> {
+  readonly operationId?: null | string
+  readonly operationName?: null | string
+  readonly operationKind: OperationKind
+  readonly query?: null | string | DocumentNode
+  readonly variables: Variables
+  readonly metadata?: Record<string, any>
+  readonly cacheConfig: CacheConfig
+  readonly uploadables?: UploadableMap | null
+
+  getKey(): string
+
+  getUniqueKey(): string
+
+  setContext(context: TContext): TContext
+
+  getContext(): TContext
 }
 
-export type FetchResult<
-  TData = { [key: string]: any },
-  C = Record<string, any>,
-  E = Record<string, any>
-> = ExecutionResult<TData> & {
-  extensions?: E;
-  context?: C;
-};
+export interface OperationResponseWithData extends GraphQLResponseWithData {
+  context?: Record<string, any>
+  response?: Response
+}
 
-export type NextLink = (operation: Operation) => Observable<FetchResult>;
-export type RequestHandler = (
-  operation: Operation,
-  forward: NextLink,
-) => Observable<FetchResult> | null;
+export interface OperationResponseWithoutData extends GraphQLResponseWithoutData {
+  context?: Record<string, any>
+  response?: Response
+}
+
+export type OperationResponse = OperationResponseWithData | OperationResponseWithoutData
+
+export type NextLink = (operation: Operation) => RelayObservable<OperationResponse>
+
+export type RequestHandler = (operation: Operation, forward?: NextLink) => RelayObservable<OperationResponse> | null

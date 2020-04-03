@@ -1,19 +1,14 @@
-import { Operation, RequestHandler, NextLink, FetchResult } from '../types';
+import { RelayObservable } from 'relay-runtime/lib/network/RelayObservable'
+import { RelayLink } from '../link'
+import { NextLink, Operation, OperationResponse, RequestHandler } from '../types'
 
-import Observable from 'zen-observable-ts';
-
-import { ApolloLink } from '../link';
-
-export default class MockLink extends ApolloLink {
+export default class MockLink extends RelayLink {
   constructor(handleRequest: RequestHandler = () => null) {
-    super();
-    this.request = handleRequest;
+    super()
+    this.request = handleRequest
   }
 
-  public request(
-    operation: Operation,
-    forward?: NextLink,
-  ): Observable<FetchResult> | null {
-    throw Error('should be overridden');
+  public request(operation: Operation, forward?: NextLink): RelayObservable<OperationResponse> {
+    throw Error('should be overridden')
   }
 }

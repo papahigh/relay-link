@@ -1,134 +1,88 @@
-import Observable from 'zen-observable-ts';
-
-import { GraphQLRequest, Operation } from './types';
-import { ApolloLink } from './link';
-
-import { getOperationName } from 'apollo-utilities';
-import { invariant, InvariantError } from 'ts-invariant';
-export { getOperationName };
-
-export function validateOperation(operation: GraphQLRequest): GraphQLRequest {
-  const OPERATION_FIELDS = [
-    'query',
-    'operationName',
-    'variables',
-    'extensions',
-    'context',
-  ];
-  for (let key of Object.keys(operation)) {
-    if (OPERATION_FIELDS.indexOf(key) < 0) {
-      throw new InvariantError(`illegal argument: ${key}`);
-    }
-  }
-
-  return operation;
-}
+import { CacheConfig, RequestParameters, UploadableMap, Variables } from 'relay-runtime'
+import stableStringify from 'json-stable-stringify'
+import merge from 'lodash.merge'
+import { RelayLink } from './link'
+import { Operation, OperationKind } from './types'
 
 export class LinkError extends Error {
-  public link: ApolloLink;
-  constructor(message?: string, link?: ApolloLink) {
-    super(message);
-    this.link = link;
+  public link: RelayLink
+
+  constructor(message?: string, link?: RelayLink) {
+    super(message)
+    this.link = link
   }
 }
 
-export function isTerminating(link: ApolloLink): boolean {
-  return link.request.length <= 1;
+export function isTerminating(link: RelayLink): boolean {
+  return link.request.length <= 1
 }
 
-export function toPromise<R>(observable: Observable<R>): Promise<R> {
-  let completed = false;
-  return new Promise<R>((resolve, reject) => {
-    observable.subscribe({
-      next: data => {
-        if (completed) {
-          invariant.warn(
-            `Promise Wrapper does not support multiple results from Observable`,
-          );
-        } else {
-          completed = true;
-          resolve(data);
-        }
-      },
-      error: reject,
-    });
-  });
+function getKey(request: RequestParameters) {
+  const { id, name, text } = request
+  return JSON.stringify([id, name, text])
 }
 
-// backwards compat
-export const makePromise = toPromise;
-
-export function fromPromise<T>(promise: Promise<T>): Observable<T> {
-  return new Observable<T>(observer => {
-    promise
-      .then((value: T) => {
-        observer.next(value);
-        observer.complete();
-      })
-      .catch(observer.error.bind(observer));
-  });
+function getUniqueKey(request: RequestParameters, variables: Variables) {
+  const { id, name, text } = request
+  return JSON.stringify([id, name, text, stableStringify(variables)])
 }
 
-export function fromError<T>(errorValue: any): Observable<T> {
-  return new Observable<T>(observer => {
-    observer.error(errorValue);
-  });
-}
+// private symbol is used for fast type check
+const operationSymbol = Symbol()
 
-export function transformOperation(operation: GraphQLRequest): GraphQLRequest {
-  const transformedOperation: GraphQLRequest = {
-    variables: operation.variables || {},
-    extensions: operation.extensions || {},
-    operationName: operation.operationName,
-    query: operation.query,
-  };
-
-  // best guess at an operation name
-  if (!transformedOperation.operationName) {
-    transformedOperation.operationName =
-      typeof transformedOperation.query !== 'string'
-        ? getOperationName(transformedOperation.query)
-        : '';
-  }
-
-  return transformedOperation as Operation;
+export function isOperation(val: any): val is Operation {
+  return val && typeof val === 'object' && val[operationSymbol] === true
 }
 
 export function createOperation(
-  starting: any,
-  operation: GraphQLRequest,
-): Operation {
-  let context = { ...starting };
-  const setContext = next => {
+  request: RequestParameters,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables?: UploadableMap | null,
+) {
+  const operation: Partial<Operation> & { [operationSymbol]: true } = {
+    query: request.text,
+    variables: variables,
+    cacheConfig,
+    uploadables,
+    metadata: request.metadata,
+    operationId: request.id,
+    operationName: request.name,
+    operationKind: request.operationKind as OperationKind,
+    [operationSymbol]: true,
+  }
+
+  let context: Record<string, any> = { ...cacheConfig.metadata }
+
+  const setContext = (next: Record<string, any> | ((current: Record<string, any>) => Record<string, any>)) => {
     if (typeof next === 'function') {
-      context = { ...context, ...next(context) };
+      context = merge({}, context, next(context))
     } else {
-      context = { ...context, ...next };
+      context = merge({}, context, next)
     }
-  };
-  const getContext = () => ({ ...context });
+  }
+
+  const getContext = () => ({ ...context })
 
   Object.defineProperty(operation, 'setContext', {
     enumerable: false,
     value: setContext,
-  });
+  })
 
   Object.defineProperty(operation, 'getContext', {
     enumerable: false,
     value: getContext,
-  });
+  })
 
-  Object.defineProperty(operation, 'toKey', {
+  Object.defineProperty(operation, 'getKey', {
     enumerable: false,
-    value: () => getKey(operation),
-  });
+    value: () => getKey(request),
+  })
 
-  return operation as Operation;
-}
+  Object.defineProperty(operation, 'getUniqueKey', {
+    enumerable: false,
+    value: () => getUniqueKey(request, variables),
+  })
 
-export function getKey(operation: GraphQLRequest) {
-  // XXX We're assuming here that query and variables will be serialized in
-  // the same order, which might not always be true.
-  const { query, variables, operationName } = operation;
-  return JSON.stringify([operationName, query, variables]);
+  return operation as Operation
 }

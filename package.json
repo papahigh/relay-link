@@ -1,91 +1,78 @@
 {
   "private": true,
   "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
+    "bootstrap": "lerna bootstrap",
+    "prebootstrap": "yarn install",
     "diff": "check-if-folder-contents-changed-in-git-commit-range",
-    "postinstall": "lerna exec -- npm install --package-lock=false && lerna run prepare",
+    "postinstall": "lerna run prepare",
     "build": "lerna run build",
     "test": "lerna run test",
-    "prelint": "npm run lint-fix",
+    "prelint": "yarn lint-fix",
     "lint": "lerna run lint",
-    "lint-fix": "prettier --trailing-comma all --single-quote --write \"packages/*/{src,tests,test,benchmark}/**/*.{j,t}s*\"",
+    "lint-fix": "prettier --write \"packages/*/{src,tests,test,benchmark}/**/*.{j,t}s*\"",
     "lint-staged": "lint-staged",
-    "lint-check": "prettier-check --single-quote --trailing-comma all \"packages/*/{src,__tests__}/**/*.ts\"",
+    "lint-check": "prettier-check \"packages/*/{src,__tests__}/**/*.ts\"",
     "filesize": "lerna run filesize && bundlesize",
     "type-check": "lerna run type-check",
     "coverage": "jest --verbose --coverage",
     "coverage:upload": "codecov",
     "danger": "danger run --verbose",
-    "predeploy": "npm install",
-    "test-ci": "npm run coverage -- --ci --maxWorkers=2 --reporters=default --reporters=jest-junit",
+    "predeploy": "yarn install",
+    "test-ci": "yarn coverage -- --ci --maxWorkers=2 --reporters=default --reporters=jest-junit",
     "deploy": "lerna publish -m \"chore: Publish\"",
-    "watch": "trap \"kill 0\" SIGINT; for f in `ls packages`; do (cd `pwd`/packages/$f && [[ -e package.json ]] && npm run watch) & done; "
+    "watch": "trap \"kill 0\" SIGINT; for f in `ls packages`; do (cd `pwd`/packages/$f && [[ -e package.json ]] && yarn watch) & done; "
   },
   "bundlesize": [
     {
-      "name": "apollo-link",
-      "path": "./packages/apollo-link/lib/bundle.min.js",
+      "name": "relay-link",
+      "path": "./packages/relay-link/lib/bundle.min.js",
       "maxSize": "1.1 Kb"
     },
     {
-      "name": "apollo-link-batch",
-      "path": "./packages/apollo-link-batch/lib/bundle.min.js",
+      "name": "relay-link-batch",
+      "path": "./packages/relay-link-batch/lib/bundle.min.js",
       "maxSize": "1 Kb"
     },
     {
-      "name": "apollo-link-batch-http",
-      "path": "./packages/apollo-link-batch-http/lib/bundle.min.js",
+      "name": "relay-link-batch-http",
+      "path": "./packages/relay-link-batch-http/lib/bundle.min.js",
       "maxSize": "1 Kb"
     },
     {
-      "name": "apollo-link-dedup",
-      "path": "./packages/apollo-link-dedup/lib/bundle.min.js",
+      "name": "relay-link-dedup",
+      "path": "./packages/relay-link-dedup/lib/bundle.min.js",
       "maxSize": "535 B"
     },
     {
-      "name": "apollo-link-error",
-      "path": "./packages/apollo-link-error/lib/bundle.min.js",
+      "name": "relay-link-error",
+      "path": "./packages/relay-link-error/lib/bundle.min.js",
       "maxSize": "465 B"
     },
     {
-      "name": "apollo-link-http",
-      "path": "./packages/apollo-link-http/lib/bundle.min.js",
+      "name": "relay-link-http",
+      "path": "./packages/relay-link-http/lib/bundle.min.js",
       "maxSize": "1.15 Kb"
     },
     {
-      "name": "apollo-link-polling",
-      "path": "./packages/apollo-link-polling/lib/bundle.min.js",
-      "maxSize": "350 B"
-    },
-    {
-      "name": "apollo-link-retry",
-      "path": "./packages/apollo-link-retry/lib/bundle.min.js",
+      "name": "relay-link-retry",
+      "path": "./packages/relay-link-retry/lib/bundle.min.js",
       "maxSize": "1.15 Kb"
     },
     {
-      "name": "apollo-link-schema",
-      "path": "./packages/apollo-link-schema/lib/bundle.min.js",
+      "name": "relay-link-schema",
+      "path": "./packages/relay-link-schema/lib/bundle.min.js",
       "maxSize": "400 B"
     },
     {
-      "name": "apollo-link-ws",
-      "path": "./packages/apollo-link-ws/lib/bundle.min.js",
+      "name": "relay-link-ws",
+      "path": "./packages/relay-link-ws/lib/bundle.min.js",
       "maxSize": "300 B"
     }
   ],
-  "renovate": {
-    "extends": [
-      "config:base",
-      "schedule:nonOfficeHours",
-      ":pinOnlyDevDependencies"
-    ],
-    "semanticCommits": true,
-    "timezone": "America/New_York",
-    "automerge": false,
-    "labels": [
-      "dependencies"
-    ]
-  },
   "jest": {
     "transform": {
       ".(ts|tsx)": "ts-jest"
@@ -104,10 +91,6 @@
     ]
   },
   "lint-staged": {
-    "*.{ts, tsx, js, jsx}": [
-      "prettier --trailing-comma all --single-quote --write",
-      "git add"
-    ],
     "!(package).json": [
       "prettier --write",
       "git add"
@@ -117,27 +100,26 @@
   "pre-push": "lint-check",
   "dependencies": {},
   "devDependencies": {
-    "@condenast/bundlesize": "0.18.1",
-    "@types/zen-observable": "0.8.0",
-    "check-if-folder-contents-changed-in-git-commit-range": "1.0.0",
-    "codecov": "3.6.1",
+    "@condenast/bundlesize": "^0.18.1",
+    "check-if-folder-contents-changed-in-git-commit-range": "^1.0.1",
+    "codecov": "^3.6.5",
     "danger": "3.9.0",
-    "jest": "24.9.0",
-    "jest-junit": "6.4.0",
-    "lerna": "3.20.2",
-    "lint-staged": "7.3.0",
-    "pre-commit": "1.2.2",
-    "pre-push": "0.1.1",
-    "prettier": "1.15.2",
-    "prettier-check": "2.0.0",
+    "jest": "^25.2.1",
+    "jest-junit": "^10.0.0",
+    "lerna": "^3.20.2",
+    "lint-staged": "^10.0.9",
+    "pre-commit": "^1.2.2",
+    "pre-push": "^0.1.1",
+    "prettier": "^2.0.2",
+    "prettier-check": "^2.0.0",
     "rollup": "1.29.1",
     "rollup-plugin-invariant": "0.5.6",
     "rollup-plugin-node-resolve": "4.2.4",
     "rollup-plugin-sourcemaps": "0.4.2",
     "rollup-plugin-typescript2": "0.25.3",
     "terser": "3.17.0",
-    "ts-jest": "22.4.6",
-    "tslib": "1.10.0",
-    "typescript": "3.0.3"
+    "ts-jest": "^25.2.1",
+    "tslib": "^1.11.1",
+    "typescript": "^3.8.3"
   }
 }

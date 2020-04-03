@@ -1,12 +1,12 @@
 ---
-title: apollo-link-error
+title: relay-link-error
 description: Handle and inspect errors in your GraphQL network stack.
 ---
 
 Use this link to do some custom logic when a GraphQL or network error happens:
 
 ```js
-import { onError } from "apollo-link-error";
+import { onError } from "relay-link-error";
 
 const link = onError(({ graphQLErrors, networkError }) => {
   if (graphQLErrors)
@@ -18,8 +18,6 @@ const link = onError(({ graphQLErrors, networkError }) => {
   if (networkError) console.log(`[Network error]: ${networkError}`);
 });
 ```
-
-Apollo Link is a system of modular components for GraphQL networking. [Read the docs](https://www.apollographql.com/docs/link/#usage) to learn how to use this link with libraries like Apollo Client and graphql-tools, or as a standalone client.
 
 ## Callback
 
@@ -37,7 +35,7 @@ Returns: `Observable<FetchResult> | void` The error callback can optionally retu
 
 An error is passed as a `networkError` if a link further down the chain called the `error` callback on the observable. In most cases, `graphQLErrors` is the `errors` field of the result from the last `next` call.
 
-A `networkError` can contain additional fields, such as a GraphQL object in the case of a [failing HTTP status code](http#errors) from [`apollo-link-http`](http). In this situation, `graphQLErrors` is an alias for `networkError.result.errors` if the property exists.
+A `networkError` can contain additional fields, such as a GraphQL object in the case of a [failing HTTP status code](http#errors) from [`relay-link-http`](http). In this situation, `graphQLErrors` is an alias for `networkError.result.errors` if the property exists.
 
 ## Retrying failed requests
 
@@ -68,16 +66,11 @@ onError(({ graphQLErrors, networkError, operation, forward }) => {
       console.log(`[Network error]: ${networkError}`);
       // if you would also like to retry automatically on
       // network errors, we recommend that you use
-      // apollo-link-retry
+      // relay-link-retry
     }
   }
 );
 ```
-
-Here is a diagram of how the request flow looks like now:
-![Diagram of request flow after retrying in error links](https://i.imgur.com/ncVAdz4.png)
-
-One caveat is that the errors from the new response from retrying the request does not get passed into the error handler again. This helps to avoid being trapped in an endless request loop when you call forward() in your error handler.
 
 ## Ignoring errors
 

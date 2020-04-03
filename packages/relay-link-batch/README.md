@@ -1,15 +1,15 @@
 # Batch Link
 
 ## Purpose
-An Apollo Link to allow batching of multiple operations into a single request. For example, the `apollo-link-batch-http` uses this link to batch operations into a single http request.
+An Relay Link to allow batching of multiple operations into a single request. For example, the `relay-link-batch-http` uses this link to batch operations into a single http request.
 
 ## Installation
 
-`npm install apollo-link-batch --save`
+`npm install relay-link-batch --save`
 
 ## Usage
 ```js
-import { BatchLink } from "apollo-link-batch";
+import { BatchLink } from "relay-link-batch";
 
 const link = new BatchLink({
   batchHandler: (operations: Operation[], forward: NextLink) => Observable<FetchResult[]> | null

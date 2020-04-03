@@ -1,11 +1,11 @@
-import { Operation } from 'apollo-link';
+import { Operation } from 'relay-link'
 
 /**
  * Advanced mode: a function that determines both whether a particular
  * response should be retried.
  */
 export interface RetryFunction {
-  (count: number, operation: Operation, error: any): boolean | Promise<boolean>;
+  (count: number, operation: Operation, error: any): boolean | Promise<boolean>
 }
 
 export interface RetryFunctionOptions {
@@ -17,7 +17,7 @@ export interface RetryFunctionOptions {
    *
    * Defaults to 5.  Pass Infinity for infinite retries.
    */
-  max?: number;
+  max?: number
 
   /**
    * Predicate function that determines whether a particular error should
@@ -27,15 +27,13 @@ export interface RetryFunctionOptions {
    *
    * By default, all errors are retried.
    */
-  retryIf?: (error: any, operation: Operation) => boolean | Promise<boolean>;
+  retryIf?: (error: any, operation: Operation) => boolean | Promise<boolean>
 }
 
-export function buildRetryFunction(
-  retryOptions?: RetryFunctionOptions,
-): RetryFunction {
-  const { retryIf, max = 5 } = retryOptions || ({} as RetryFunctionOptions);
+export function buildRetryFunction(retryOptions?: RetryFunctionOptions): RetryFunction {
+  const { retryIf, max = 5 } = retryOptions || ({} as RetryFunctionOptions)
   return function retryFunction(count, operation, error) {
-    if (count >= max) return false;
-    return retryIf ? retryIf(error, operation) : !!error;
-  };
+    if (count >= max) return false
+    return retryIf ? retryIf(error, operation) : !!error
+  }
 }

@@ -1,138 +1,161 @@
-import Observable from 'zen-observable-ts';
-import { invariant, InvariantError } from 'ts-invariant';
+import { CacheConfig, Observable, RequestParameters, UploadableMap, Variables } from 'relay-runtime'
+import { RelayObservable } from 'relay-runtime/lib/network/RelayObservable'
+import { invariant, InvariantError } from 'ts-invariant'
+import { createOperation, isOperation, isTerminating, LinkError } from './linkUtils'
+import { NextLink, Operation, OperationResponse, RequestHandler } from './types'
 
-import {
-  GraphQLRequest,
-  NextLink,
-  Operation,
-  RequestHandler,
-  FetchResult,
-} from './types';
-
-import {
-  validateOperation,
-  isTerminating,
-  LinkError,
-  transformOperation,
-  createOperation,
-} from './linkUtils';
-
-function passthrough(op, forward) {
-  return forward ? forward(op) : Observable.of();
+function passThrough(op: Operation, forward?: RequestHandler) {
+  return forward ? forward(op) : empty()
 }
 
-function toLink(handler: RequestHandler | ApolloLink) {
-  return typeof handler === 'function' ? new ApolloLink(handler) : handler;
+export function toLink(handler: RequestHandler | RelayLink) {
+  return typeof handler === 'function' ? new RelayLink(handler) : handler
 }
 
-export function empty(): ApolloLink {
-  return new ApolloLink(() => Observable.of());
+export function from(links: (RequestHandler | RelayLink)[]): RelayLink {
+  if (links.length === 0) return new RelayLink(empty)
+  return links.map(toLink).reduce((x, y) => x.concat(y))
 }
 
-export function from(links: ApolloLink[]): ApolloLink {
-  if (links.length === 0) return empty();
-  return links.map(toLink).reduce((x, y) => x.concat(y));
+export function fromError<TResponse = OperationResponse>(error: Error) {
+  return Observable.create<TResponse>(sink => {
+    sink.error(error)
+  })
 }
 
 export function split(
   test: (op: Operation) => boolean,
-  left: ApolloLink | RequestHandler,
-  right?: ApolloLink | RequestHandler,
-): ApolloLink {
-  const leftLink = toLink(left);
-  const rightLink = toLink(right || new ApolloLink(passthrough));
-
+  left: RequestHandler | RelayLink,
+  right?: RequestHandler | RelayLink,
+) {
+  const leftLink = toLink(left)
+  const rightLink = toLink(right || new RelayLink(passThrough))
   if (isTerminating(leftLink) && isTerminating(rightLink)) {
-    return new ApolloLink(operation => {
-      return test(operation)
-        ? leftLink.request(operation) || Observable.of()
-        : rightLink.request(operation) || Observable.of();
-    });
+    return new RelayLink(operation =>
+      test(operation) ? leftLink.request(operation) || empty() : rightLink.request(operation) || empty(),
+    )
   } else {
-    return new ApolloLink((operation, forward) => {
-      return test(operation)
-        ? leftLink.request(operation, forward) || Observable.of()
-        : rightLink.request(operation, forward) || Observable.of();
-    });
+    return new RelayLink((operation, forward) =>
+      test(operation)
+        ? leftLink.request(operation, forward) || empty()
+        : rightLink.request(operation, forward) || empty(),
+    )
   }
 }
 
-// join two Links together
-export const concat = (
-  first: ApolloLink | RequestHandler,
-  second: ApolloLink | RequestHandler,
-) => {
-  const firstLink = toLink(first);
+export function concat(first: RequestHandler | RelayLink, second: RequestHandler | RelayLink) {
+  const firstLink = toLink(first)
   if (isTerminating(firstLink)) {
-    invariant.warn(
-      new LinkError(
-        `You are calling concat on a terminating link, which will have no effect`,
-        firstLink,
-      ),
-    );
-    return firstLink;
+    invariant.warn(new LinkError(`You are calling concat on a terminating link, which will have no effect`, firstLink))
+    return firstLink
   }
-  const nextLink = toLink(second);
-
-  if (isTerminating(nextLink)) {
-    return new ApolloLink(
-      operation =>
-        firstLink.request(
-          operation,
-          op => nextLink.request(op) || Observable.of(),
-        ) || Observable.of(),
-    );
+  const secondLink = toLink(second)
+  if (isTerminating(secondLink)) {
+    return new RelayLink(operation => firstLink.request(operation, op => secondLink.request(op)))
   } else {
-    return new ApolloLink((operation, forward) => {
-      return (
-        firstLink.request(operation, op => {
-          return nextLink.request(op, forward) || Observable.of();
-        }) || Observable.of()
-      );
-    });
+    return new RelayLink((operation, forward) => firstLink.request(operation, op => secondLink.request(op, forward)))
   }
-};
+}
 
-export class ApolloLink {
-  public static empty = empty;
-  public static from = from;
-  public static split = split;
-  public static execute = execute;
+export function empty() {
+  return Observable.create<OperationResponse>(sink => sink.complete())
+}
+
+export class RelayLink {
+  public static empty() {
+    return new RelayLink(empty)
+  }
+  public static from = from
+  public static split = split
+  public static execute = execute
 
   constructor(request?: RequestHandler) {
-    if (request) this.request = request;
+    if (request) this.request = request
   }
 
   public split(
     test: (op: Operation) => boolean,
-    left: ApolloLink | RequestHandler,
-    right?: ApolloLink | RequestHandler,
-  ): ApolloLink {
-    return this.concat(split(test, left, right || new ApolloLink(passthrough)));
+    left: RelayLink | RequestHandler,
+    right?: RelayLink | RequestHandler,
+  ): RelayLink {
+    return this.concat(split(test, left, right || new RelayLink(passThrough)))
   }
 
-  public concat(next: ApolloLink | RequestHandler): ApolloLink {
-    return concat(this, next);
+  public concat(next: RelayLink | RequestHandler): RelayLink {
+    return concat(this, next)
   }
 
-  public request(
-    operation: Operation,
-    forward?: NextLink,
-  ): Observable<FetchResult> | null {
-    throw new InvariantError('request is not implemented');
+  public execute(operation: Operation): RelayObservable<OperationResponse>
+  public execute(
+    request: RequestParameters,
+    variables: Variables,
+    cacheConfig: CacheConfig,
+    uploadables?: UploadableMap | null,
+  ): RelayObservable<OperationResponse>
+  public execute(
+    requestOrOperation: RequestParameters | Operation,
+    variables?: Variables,
+    cacheConfig?: CacheConfig,
+    uploadables?: UploadableMap | null,
+  ): RelayObservable<OperationResponse> {
+    if (isOperation(requestOrOperation)) {
+      return execute(this, requestOrOperation)
+    } else {
+      return execute(this, requestOrOperation, variables, cacheConfig, uploadables)
+    }
+  }
+
+  public request(operation: Operation, forward?: NextLink): RelayObservable<OperationResponse> {
+    throw new InvariantError('Not implemented')
   }
 }
 
+export abstract class RelayDisposableLink extends RelayLink {
+  public abstract dispose(): void
+}
+
+export interface FactoryLinkOptions {
+  factory: () => RelayDisposableLink
+}
+
+export class InitializingLink extends RelayLink {
+  private readonly factory: () => RelayDisposableLink
+  private link?: RelayDisposableLink
+
+  public constructor(options: FactoryLinkOptions) {
+    super()
+    this.factory = options.factory
+  }
+
+  public initialize() {
+    if (this.link) this.link.dispose()
+    this.link = this.factory()
+  }
+
+  public request(operation: Operation, forward?: NextLink): RelayObservable<OperationResponse> {
+    if (!this.link) this.initialize()
+    return this.link.request(operation, forward)
+  }
+}
+
+export function execute(link: RelayLink, operation: Operation): RelayObservable<OperationResponse>
 export function execute(
-  link: ApolloLink,
-  operation: GraphQLRequest,
-): Observable<FetchResult> {
-  return (
-    link.request(
-      createOperation(
-        operation.context,
-        transformOperation(validateOperation(operation)),
-      ),
-    ) || Observable.of()
-  );
+  link: RelayLink,
+  request: RequestParameters,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables?: UploadableMap | null,
+): RelayObservable<OperationResponse>
+export function execute(
+  link: RelayLink,
+  requestOrOperation: RequestParameters | Operation,
+  variables?: Variables,
+  cacheConfig?: CacheConfig,
+  uploadables?: UploadableMap | null,
+): RelayObservable<OperationResponse> {
+  if (isOperation(requestOrOperation)) {
+    return link.request(requestOrOperation) || empty()
+  } else {
+    return link.execute(createOperation(requestOrOperation, variables, cacheConfig, uploadables)) || empty()
+  }
 }

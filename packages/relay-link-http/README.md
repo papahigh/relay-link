@@ -1,13 +1,7 @@
 ---
-title: apollo-link-http
+title: relay-link-http
 description: Get GraphQL results over a network using HTTP fetch.
 ---
-
-The http link is the most common Apollo Link, a system of modular components
-for GraphQL networking. If you haven't done so already, [read the Apollo Link
-docs](https://www.apollographql.com/docs/link/#usage) to learn about the Apollo
-Link ecosystem and how to use this link with libraries like Apollo Client and
-graphql-tools, or as a standalone client.
 
 The http link is a terminating link that fetches GraphQL results from a GraphQL
 endpoint over an http connection. The http link supports both POST and GET
@@ -20,7 +14,7 @@ granular updates.
 Import and initialize this link in just two lines:
 
 ```js
-import { createHttpLink } from "apollo-link-http";
+import { createHttpLink } from "relay-link-http";
 
 const link = createHttpLink({ uri: "/graphql" });
 ```
@@ -54,57 +48,10 @@ This link also attaches the response from the `fetch` operation on the context a
 * `uri`: a string of the endpoint you want to fetch from
 * `fetchOptions`: any overrides of the fetch options argument to pass to the fetch call
 * `response`: this is the raw response from the fetch request after it is made.
-* `http`: this is an object to control fine grained aspects of the http link itself, such as persisted queries (see below)
-
-### Persisted queries
-
-The http link supports an advanced GraphQL feature called persisted queries. This allows you to not send the stringified query over the wire, but instead send some kind of identifier of the query. To support this you need to attach the id somewhere to the extensions field and pass the following options to the context:
-
-```js
-operation.setContext({
-  http: {
-    includeExtensions: true,
-    includeQuery: false,
-  }
-})
-```
-
-The `http` object on context currently supports two keys:
-
-* `includeExtensions`: Send the extensions object for this request.
-* `includeQuery`: Don't send the `query` field for this request.
-
-One way to use persisted queries is with [apollo-link-persisted-queries](https://github.com/apollographql/apollo-link-persisted-queries) and [Apollo Engine](https://www.apollographql.com/docs/engine/auto-persisted-queries.html).
-
-### Passing context per query
-
-Apollo Client supports passing context separately for every query, so you can do things like pass a special header for a single query invocation if you need to.
-
-```js
-import { createHttpLink } from "apollo-link-http";
-import ApolloClient from "apollo-client";
-import { InMemoryCache } from "apollo-cache-inmemory";
-
-const client = new ApolloClient({
-  link: createHttpLink({ uri: "/graphql" }),
-  cache: new InMemoryCache()
-});
-
-// a query with apollo-client
-client.query({
-  query: MY_QUERY,
-  context: {
-    // example of setting the headers with context per operation
-    headers: {
-      special: "Special header value"
-    }
-  }
-});
-```
 
 ## Errors
 
-The Http Link draws a distinction between client, server and GraphQL errors. Server errors can occur in three different scenarios: parse, network and data errors. [`apollo-link-error`](error) provides an [interface](error#callback) for handling these errors. This list describes the scenarios that cause different errors:
+The Http Link draws a distinction between client, server and GraphQL errors. Server errors can occur in three different scenarios: parse, network and data errors. [`relay-link-error`](error) provides an [interface](error#callback) for handling these errors. This list describes the scenarios that cause different errors:
 
 * _Client parse error_: the request body is not-serializable due to circular references for example
 * _Server parse error_: the response from the server cannot be parsed ([response.json()](https://developer.mozilla.org/en-US/docs/Web/API/Body/json))
@@ -176,140 +123,4 @@ const customFetch = (uri, options) => {
 };
 
 const link = createHttpLink({ fetch: customFetch });
-```
-
-## Upgrade: Apollo Client 1.0
-
-If you previously used either `apollo-fetch` or `apollo-client`'s `createNetworkInterface`, you will need to change the way `use` and `useAfter` are implemented in your app. Both can be implemented by writing a custom link. It's important to note that regardless of whether you're adding middleware or afterware, your Http link will always be last in the chain since it's a terminating link.
-
-#### Middleware
-
-_Before_
-
-```js
-// before
-import ApolloClient, { createNetworkInterface } from "apollo-client";
-
-const networkInterface = createNetworkInterface({ uri: "/graphql" });
-
-networkInterface.use([
-  {
-    applyMiddleware(req, next) {
-      if (!req.options.headers) {
-        req.options.headers = {}; // Create the header object if needed.
-      }
-      req.options.headers["authorization"] = localStorage.getItem("token")
-        ? localStorage.getItem("token")
-        : null;
-      next();
-    }
-  }
-]);
-```
-
-_After_
-
-```js
-import { ApolloLink } from "apollo-link";
-import { createHttpLink } from "apollo-link-http";
-
-const httpLink = createHttpLink({ uri: "/graphql" });
-const middlewareLink = new ApolloLink((operation, forward) => {
-  operation.setContext({
-    headers: {
-      authorization: localStorage.getItem("token") || null
-    }
-  });
-  return forward(operation);
-});
-
-// use with apollo-client
-const link = middlewareLink.concat(httpLink);
-```
-
-#### Afterware (error)
-
-_Before_
-
-```js
-import ApolloClient, { createNetworkInterface } from "apollo-client";
-import { logout } from "./logout";
-
-const networkInterface = createNetworkInterface({ uri: "/graphql" });
-
-networkInterface.useAfter([
-  {
-    applyAfterware({ response }, next) {
-      if (response.statusCode === 401) {
-        logout();
-      }
-      next();
-    }
-  }
-]);
-```
-
-_After_
-
-```js
-import { ApolloLink } from "apollo-link";
-import { createHttpLink } from "apollo-link-http";
-import { onError } from "apollo-link-error";
-
-import { logout } from "./logout";
-
-const httpLink = createHttpLink({ uri: "/graphql" });
-const errorLink = onError(({ networkError }) => {
-  if (networkError.statusCode === 401) {
-    logout();
-  }
-});
-
-// use with apollo-client
-const link = errorLink.concat(httpLink);
-```
-
-#### Afterware (data manipulation)
-
-_Before_
-
-```js
-import ApolloClient, { createNetworkInterface } from "apollo-client";
-
-const networkInterface = createNetworkInterface({ uri: "/graphql" });
-
-networkInterface.useAfter([
-  {
-    applyAfterware({ response }, next) {
-      if (response.data.user.lastLoginDate) {
-        response.data.user.lastLoginDate = new Date(
-          response.data.user.lastLoginDate
-        );
-      }
-      next();
-    }
-  }
-]);
-```
-
-_After_
-
-```js
-import { ApolloLink } from "apollo-link";
-import { createHttpLink } from "apollo-link-http";
-
-const httpLink = createHttpLink({ uri: "/graphql" });
-const addDatesLink = new ApolloLink((operation, forward) => {
-  return forward(operation).map(response => {
-    if (response.data.user.lastLoginDate) {
-      response.data.user.lastLoginDate = new Date(
-        response.data.user.lastLoginDate
-      );
-    }
-    return response;
-  });
-});
-
-// use with apollo-client
-const link = addDatesLink.concat(httpLink);
 ```

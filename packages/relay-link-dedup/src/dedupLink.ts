@@ -1,82 +1,66 @@
-import {
-  ApolloLink,
-  Operation,
-  NextLink,
-  FetchResult,
-  Observable,
-} from 'apollo-link';
+import { RelayLink, Operation, NextLink, OperationResponse } from 'relay-link'
+import { RelayObservable, Sink, Subscription } from 'relay-runtime/lib/network/RelayObservable'
+import { Observable } from 'relay-runtime'
 
 /*
- * Expects context to contain the forceFetch field if no dedup
+ * Expects cacheConfig to contain the force field if no dedup
  */
-export class DedupLink extends ApolloLink {
-  private inFlightRequestObservables: Map<
-    string,
-    Observable<FetchResult>
-  > = new Map();
-  private subscribers: Map<string, any> = new Map();
+export class DedupLink extends RelayLink {
+  private inFlightRequestObservables: Map<string, RelayObservable<OperationResponse>> = new Map()
+  private subscribers: Map<string, Set<Sink<OperationResponse>>> = new Map()
 
-  public request(
-    operation: Operation,
-    forward: NextLink,
-  ): Observable<FetchResult> {
-    // sometimes we might not want to deduplicate a request, for example when we want to force fetch it.
-    if (operation.getContext().forceFetch) {
-      return forward(operation);
+  public request(operation: Operation, forward: NextLink): RelayObservable<OperationResponse> {
+    if (operation.cacheConfig.force) {
+      return forward(operation)
     }
-
-    const key = operation.toKey();
-
-    if (!this.inFlightRequestObservables.get(key)) {
+    const key = operation.getUniqueKey()
+    if (!this.inFlightRequestObservables.has(key)) {
       // this is a new request, i.e. we haven't deduplicated it yet
       // call the next link
-      const singleObserver = forward(operation);
-      let subscription;
+      const singleObserver = forward(operation)
+      let subscription: Subscription
 
-      const sharedObserver = new Observable(observer => {
+      const sharedObservable = Observable.create<OperationResponse>(sink => {
         // this will still be called by each subscriber regardless of
         // deduplication status
-        if (!this.subscribers.has(key)) this.subscribers.set(key, new Set());
-
-        this.subscribers.get(key).add(observer);
+        if (!this.subscribers.has(key)) this.subscribers.set(key, new Set())
+        this.subscribers.get(key)!.add(sink)
 
         if (!subscription) {
           subscription = singleObserver.subscribe({
             next: result => {
-              const subscribers = this.subscribers.get(key);
-              this.subscribers.delete(key);
-              this.inFlightRequestObservables.delete(key);
+              const subscribers = this.subscribers.get(key)
+              this.subscribers.delete(key)
+              this.inFlightRequestObservables.delete(key)
               if (subscribers) {
-                subscribers.forEach(obs => obs.next(result));
-                subscribers.forEach(obs => obs.complete());
+                subscribers.forEach(s => s.next(result))
+                subscribers.forEach(s => s.complete())
               }
             },
-            error: error => {
-              const subscribers = this.subscribers.get(key);
-              this.subscribers.delete(key);
-              this.inFlightRequestObservables.delete(key);
-              if (subscribers) {
-                subscribers.forEach(obs => obs.error(error));
-              }
+            error: (error: Error) => {
+              const subscribers = this.subscribers.get(key)
+              this.subscribers.delete(key)
+              this.inFlightRequestObservables.delete(key)
+              if (subscribers) subscribers.forEach(s => s.error(error))
             },
-          });
+          })
         }
 
         return () => {
           if (this.subscribers.has(key)) {
-            this.subscribers.get(key).delete(observer);
-            if (this.subscribers.get(key).size === 0) {
-              this.inFlightRequestObservables.delete(key);
-              if (subscription) subscription.unsubscribe();
+            this.subscribers.get(key)?.delete(sink)
+            if (this.subscribers.get(key)?.size === 0) {
+              this.inFlightRequestObservables.delete(key)
+              if (subscription) subscription.unsubscribe()
             }
           }
-        };
-      });
+        }
+      })
 
-      this.inFlightRequestObservables.set(key, sharedObserver);
+      this.inFlightRequestObservables.set(key, sharedObservable)
     }
 
     // return shared Observable
-    return this.inFlightRequestObservables.get(key);
+    return this.inFlightRequestObservables.get(key)!
   }
 }

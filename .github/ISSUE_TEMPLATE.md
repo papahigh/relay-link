@@ -1,5 +1,5 @@
 <!--
-  Thanks for filing an issue on Apollo Link!
+  Thanks for filing an issue on Relay Link!
 
   Please make sure that you include the following information to ensure that your issue is actionable.
 

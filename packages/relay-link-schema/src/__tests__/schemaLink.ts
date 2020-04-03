@@ -1,9 +1,10 @@
-import { Observable, ApolloLink, execute } from 'apollo-link';
-import { print, graphql } from 'graphql';
-import { makeExecutableSchema } from 'graphql-tools';
-import gql from 'graphql-tag';
+import gql from 'graphql-tag'
+import { makeExecutableSchema } from 'graphql-tools'
+import { DocumentNode } from 'graphql/language/ast'
+import { execute, OperationKind } from 'relay-link'
+import { RequestParameters } from 'relay-runtime'
 
-import { SchemaLink } from '../';
+import { SchemaLink } from '../'
 
 const sampleQuery = gql`
   query SampleQuery {
@@ -11,15 +12,7 @@ const sampleQuery = gql`
       id
     }
   }
-`;
-
-const sampleMutation = gql`
-  mutation SampleMutation {
-    stub(param: "value") {
-      id
-    }
-  }
-`;
+`
 
 const typeDefs = `
 type Stub {
@@ -29,90 +22,83 @@ type Stub {
 type Query {
   sampleQuery: Stub
 }
-`;
+`
 
-const schema = makeExecutableSchema({ typeDefs });
+const schema = makeExecutableSchema({ typeDefs })
+
+export function createRequest(
+  query: string | DocumentNode,
+  operationKind = OperationKind.SUBSCRIPTION,
+): RequestParameters {
+  return {
+    id: undefined,
+    name: undefined as any,
+    text: query as any,
+    operationKind,
+    metadata: {},
+  }
+}
 
 describe('SchemaLink', () => {
-  const data = { data: { hello: 'world' } };
-  const data2 = { data: { hello: 'everyone' } };
-  const mockError = { throws: new TypeError('mock me') };
+  const mockError = { throws: new TypeError('mock me') }
 
-  let subscriber;
+  it('should raise warning if called with concat', () => {
+    const link = new SchemaLink({ schema })
+    const _warn = console.warn
+    console.warn = warning => expect(warning['message']).toBeDefined()
+    expect(link.concat((operation, forward) => forward(operation))).toEqual(link)
+    console.warn = _warn
+  })
 
-  beforeEach(() => {
-    const next = jest.fn();
-    const error = jest.fn();
-    const complete = jest.fn();
+  it('should throw error if no arguments given', () => {
+    expect(() => new (SchemaLink as any)()).toThrow()
+  })
 
-    subscriber = {
+  it('should correctly receive the constructor arguments', () => {
+    const rootValue = {}
+    const link = new SchemaLink({ schema, rootValue })
+    expect((link as any).rootValue).toEqual(rootValue)
+    expect((link as any).schema).toEqual(schema)
+  })
+
+  it('should call next and complete', done => {
+    const next = jest.fn()
+    const link = new SchemaLink({ schema })
+    execute(link, createRequest(sampleQuery), {}, {}).subscribe({
       next,
-      error,
-      complete,
-    };
-  });
-
-  it('raises warning if called with concat', () => {
-    const link = new SchemaLink({ schema });
-    const _warn = console.warn;
-    console.warn = warning => expect(warning['message']).toBeDefined();
-    expect(link.concat((operation, forward) => forward(operation))).toEqual(
-      link,
-    );
-    console.warn = _warn;
-  });
-
-  it('throws if no arguments given', () => {
-    expect(() => new (SchemaLink as any)()).toThrow();
-  });
-
-  it('correctly receives the constructor arguments', () => {
-    let rootValue = {};
-    let link = new SchemaLink({ schema, rootValue });
-    expect(link.rootValue).toEqual(rootValue);
-    expect(link.schema).toEqual(schema);
-  });
-
-  it('calls next and then complete', done => {
-    const next = jest.fn();
-    const link = new SchemaLink({ schema });
-    const observable = execute(link, {
-      query: sampleQuery,
-    });
-    observable.subscribe({
-      next,
-      error: error => expect(false),
+      error: () => expect(false).toBeTruthy(),
       complete: () => {
-        expect(next).toHaveBeenCalledTimes(1);
-        done();
+        expect(next).toHaveBeenCalledTimes(1)
+        done()
       },
-    });
-  });
+    })
+  })
 
-  it('calls error when fetch fails', done => {
-    const badTypeDefs = 'type Query {}';
-    const badSchema = makeExecutableSchema({ typeDefs });
+  it('should call error when fetch fails', done => {
+    const badSchema = makeExecutableSchema({
+      typeDefs,
+      resolvers: {
+        Query: {
+          sampleQuery: () => {
+            throw mockError.throws
+          },
+        },
+      },
+    })
+    const link = new SchemaLink({ schema: badSchema })
 
-    const link = new SchemaLink({ schema: badSchema });
-    const observable = execute(link, {
-      query: sampleQuery,
-    });
-    observable.subscribe(
-      result => expect(false),
-      error => {
-        expect(error).toEqual(mockError.throws);
-        done();
+    execute(link, createRequest(sampleQuery), {}, {}).subscribe({
+      next: data => {
+        expect(data.errors![0].message).toEqual(mockError.throws.message)
+        done()
       },
-      () => {
-        expect(false);
-        done();
-      },
-    );
-  });
+      error: () => expect(false).toBeTruthy(),
+    })
+  })
 
   it('supports query which is executed synchronously', done => {
-    const next = jest.fn();
-    const link = new SchemaLink({ schema });
+    const next = jest.fn()
+    const link = new SchemaLink({ schema })
     const introspectionQuery = gql`
       query IntrospectionQuery {
         __schema {
@@ -121,101 +107,88 @@ describe('SchemaLink', () => {
           }
         }
       }
-    `;
-    const observable = execute(link, {
-      query: introspectionQuery,
-    });
-    observable.subscribe(
+    `
+
+    execute(link, createRequest(introspectionQuery), {}, {}).subscribe({
       next,
-      error => expect(false),
-      () => {
-        expect(next).toHaveBeenCalledTimes(1);
-        done();
+      error: () => expect(false).toBeTruthy(),
+      complete: () => {
+        expect(next).toHaveBeenCalledTimes(1)
+        done()
       },
-    );
-  });
+    })
+  })
 
   it('passes operation context into execute with context function', done => {
-    const next = jest.fn();
-    const contextValue = { some: 'value' };
-    const contextProvider = jest.fn(operation => operation.getContext());
+    const next = jest.fn()
+    const contextValue = { some: 'value' }
+    const contextProvider = jest.fn(() => contextValue)
+
     const resolvers = {
       Query: {
-        sampleQuery: (root, args, context) => {
+        // @ts-ignore
+        sampleQuery: (root: any, args: any, context: any) => {
           try {
-            expect(context).toEqual(contextValue);
+            expect(context).toEqual(contextValue)
           } catch (error) {
-            done.fail('Should pass context into resolver');
+            done.fail('Should pass context into resolver')
           }
         },
       },
-    };
-    const schemaWithResolvers = makeExecutableSchema({
-      typeDefs,
-      resolvers,
-    });
-    const link = new SchemaLink({
-      schema: schemaWithResolvers,
-      context: contextProvider,
-    });
-    const observable = execute(link, {
-      query: sampleQuery,
-      context: contextValue,
-    });
-    observable.subscribe(
+    }
+
+    const schemaWithResolvers = makeExecutableSchema({ typeDefs, resolvers })
+    const link = new SchemaLink({ schema: schemaWithResolvers, context: contextProvider })
+
+    execute(link, createRequest(sampleQuery), {}, {}).subscribe({
       next,
-      error => done.fail("Shouldn't call onError"),
-      () => {
+      error: () => done.fail("Shouldn't call onError"),
+      complete: () => {
         try {
-          expect(next).toHaveBeenCalledTimes(1);
-          expect(contextProvider).toHaveBeenCalledTimes(1);
-          done();
+          expect(next).toHaveBeenCalledTimes(1)
+          expect(contextProvider).toHaveBeenCalledTimes(1)
+          done()
         } catch (e) {
-          done.fail(e);
+          done.fail(e)
         }
       },
-    );
-  });
+    })
+  })
 
   it('passes static context into execute', done => {
-    const next = jest.fn();
-    const contextValue = { some: 'value' };
-    const resolver = jest.fn((root, args, context) => {
+    const next = jest.fn()
+    const contextValue = { some: 'value' }
+
+    // @ts-ignore
+    const resolver = jest.fn((root: any, args: any, context: any) => {
       try {
-        expect(context).toEqual(contextValue);
+        expect(context).toEqual(contextValue)
       } catch (error) {
-        done.fail('Should pass context into resolver');
+        done.fail('Should pass context into resolver')
       }
-    });
+    })
 
     const resolvers = {
       Query: {
         sampleQuery: resolver,
       },
-    };
-    const schemaWithResolvers = makeExecutableSchema({
-      typeDefs,
-      resolvers,
-    });
-    const link = new SchemaLink({
-      schema: schemaWithResolvers,
-      context: contextValue,
-    });
-    const observable = execute(link, {
-      query: sampleQuery,
-    });
-    observable.subscribe(
+    }
+
+    const schemaWithResolvers = makeExecutableSchema({ typeDefs, resolvers })
+    const link = new SchemaLink({ schema: schemaWithResolvers, context: contextValue })
+
+    execute(link, createRequest(sampleQuery), {}, {}).subscribe({
       next,
-      error => done.fail("Shouldn't call onError"),
-      () => {
+      error: () => done.fail("Shouldn't call onError"),
+      complete: () => {
         try {
-          expect(next).toHaveBeenCalledTimes(1);
-          expect(resolver).toHaveBeenCalledTimes(1);
-          done();
+          expect(next).toHaveBeenCalledTimes(1)
+          expect(resolver).toHaveBeenCalledTimes(1)
+          done()
         } catch (e) {
-          done.fail(e);
+          done.fail(e)
         }
       },
-    );
-  });
-});
+    })
+  })
+})

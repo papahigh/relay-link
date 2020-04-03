@@ -1,54 +1,65 @@
-import { ApolloLink, Operation, FetchResult, Observable } from 'apollo-link';
+import { Operation, OperationResponse, RelayDisposableLink } from 'relay-link'
+import { Observable } from 'relay-runtime'
+import { RelayObservable } from 'relay-runtime/lib/network/RelayObservable'
 
-import { SubscriptionClient, ClientOptions } from 'subscriptions-transport-ws';
+import { ClientOptions, SubscriptionClient } from 'relay-transport-ws'
 
-export namespace WebSocketLink {
+/**
+ * Configuration to use when constructing the subscription client (subscriptions-transport-ws).
+ */
+export interface Configuration {
   /**
-   * Configuration to use when constructing the subscription client (subscriptions-transport-ws).
+   * The endpoint to connect to.
    */
-  export interface Configuration {
-    /**
-     * The endpoint to connect to.
-     */
-    uri: string;
+  uri: string
 
-    /**
-     * Options to pass when constructing the subscription client.
-     */
-    options?: ClientOptions;
+  /**
+   * Options to pass when constructing the subscription client.
+   */
+  options?: ClientOptions
 
-    /**
-     * A custom WebSocket implementation to use.
-     */
-    webSocketImpl?: any;
-  }
+  /**
+   * A custom WebSocket implementation to use.
+   */
+  webSocketImpl?: any
 }
 
-// For backwards compatibility.
-export import WebSocketParams = WebSocketLink.Configuration;
+export class WebSocketLink extends RelayDisposableLink {
+  private subscriptionClient: SubscriptionClient
 
-export class WebSocketLink extends ApolloLink {
-  private subscriptionClient: SubscriptionClient;
-
-  constructor(
-    paramsOrClient: WebSocketLink.Configuration | SubscriptionClient,
-  ) {
-    super();
-
+  constructor(paramsOrClient: Configuration | SubscriptionClient) {
+    super()
     if (paramsOrClient instanceof SubscriptionClient) {
-      this.subscriptionClient = paramsOrClient;
+      this.subscriptionClient = paramsOrClient
     } else {
       this.subscriptionClient = new SubscriptionClient(
         paramsOrClient.uri,
         paramsOrClient.options,
         paramsOrClient.webSocketImpl,
-      );
+      )
     }
   }
 
-  public request(operation: Operation): Observable<FetchResult> | null {
-    return this.subscriptionClient.request(operation) as Observable<
-      FetchResult
-    >;
+  public dispose() {
+    this.subscriptionClient.close()
+  }
+
+  public request(operation: Operation): RelayObservable<OperationResponse> {
+    return Observable.create<OperationResponse>(sink => {
+      const { unsubscribe } = this.subscriptionClient.request(operation).subscribe({
+        next: (value: any) => {
+          if (!sink.closed) {
+            sink.next(value)
+          }
+        },
+        complete: () => {
+          if (!sink.closed) sink.complete()
+        },
+        error: error => {
+          if (!sink.closed) sink.error(error)
+        },
+      })
+      return unsubscribe
+    })
   }
 }

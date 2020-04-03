@@ -1,6 +1,6 @@
 {
-  "name": "apollo-link-schema",
-  "version": "1.2.4",
+  "name": "relay-link-schema",
+  "version": "1.0.0",
   "description": "Use a GraphQL Schema to request data",
   "author": "Tomas Trescak <tomi.trescak@gmail.com>",
   "contributors": [
@@ -18,44 +18,57 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apollographql/apollo-link.git"
+    "url": "git+https://github.com/papahigh/relay-link.git"
   },
   "bugs": {
-    "url": "https://github.com/apollographql/apollo-link/issues"
+    "url": "https://github.com/papahigh/relay-link/issues"
   },
-  "homepage": "https://github.com/apollographql/apollo-link#readme",
+  "homepage": "https://github.com/papahigh/relay-link#readme",
+  "keywords": [
+    "Relay",
+    "GraphQL",
+    "Network",
+    "Schema"
+  ],
   "scripts": {
     "build": "tsc && rollup -c",
     "clean": "rimraf lib/* && rimraf coverage/*",
     "coverage": "jest --coverage",
     "filesize": "../../scripts/minify",
     "lint": "tslint -c \"../../tslint.json\" -p tsconfig.json -c ../../tslint.json src/*.ts",
-    "prebuild": "npm run clean",
-    "prepare": "npm run build",
-    "test": "npm run lint && jest",
+    "prebuild": "yarn clean",
+    "prepare": "yarn build",
+    "test": "yarn lint && jest",
     "watch": "tsc -w -p . & rollup -c -w"
   },
   "dependencies": {
-    "apollo-link": "file:../apollo-link",
-    "tslib": "^1.9.3"
+    "relay-link": "1.0.0",
+    "tslib": "^1.11.1"
   },
   "peerDependencies": {
-    "graphql": "^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0"
+    "graphql": "^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0",
+    "relay-runtime": "^9.0.0"
   },
   "devDependencies": {
-    "@types/graphql": "14.2.3",
-    "@types/jest": "24.9.0",
-    "graphql": "14.5.8",
-    "graphql-tag": "2.10.1",
-    "graphql-tools": "2.24.0",
-    "jest": "24.9.0",
-    "rimraf": "2.7.1",
+    "@types/jest": "^25.1.4",
+    "@types/relay-runtime": "^8.0.7",
+    "graphql": "^14.6.0",
+    "graphql-tag": "^2.10.3",
+    "graphql-tools": "^4.0.7",
+    "jest": "^25.2.1",
+    "relay-runtime": "^9.0.0",
+    "rimraf": "^3.0.2",
     "rollup": "1.29.1",
-    "ts-jest": "22.4.6",
-    "tslint": "5.20.1",
-    "typescript": "3.0.3"
+    "ts-jest": "^25.2.1",
+    "tslint": "^6.1.0",
+    "typescript": "^3.8.3"
   },
   "jest": {
+    "globals": {
+      "ts-jest": {
+        "diagnostics": false
+      }
+    },
     "transform": {
       ".(ts|tsx)": "ts-jest"
     },

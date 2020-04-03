@@ -1,23 +1,16 @@
-import { Operation, NextLink, FetchResult } from '../types';
+import { RelayObservable } from 'relay-runtime/lib/network/RelayObservable'
+import { RelayLink } from '../link'
+import { NextLink, Operation, OperationResponse } from '../types'
 
-import Observable from 'zen-observable-ts';
-
-import { ApolloLink } from '../link';
-
-export default class SetContextLink extends ApolloLink {
-  constructor(
-    private setContext: (
-      context: Record<string, any>,
-    ) => Record<string, any> = c => c,
-  ) {
-    super();
+export default class SetContextLink extends RelayLink {
+  constructor(private setContext: Record<string, any> | ((context: Record<string, any>) => Record<string, any>)) {
+    super()
   }
 
-  public request(
-    operation: Operation,
-    forward: NextLink,
-  ): Observable<FetchResult> {
-    operation.setContext(this.setContext(operation.getContext()));
-    return forward(operation);
+  public request(operation: Operation, forward: NextLink): RelayObservable<OperationResponse> {
+    operation.setContext(
+      typeof this.setContext === 'object' ? this.setContext : this.setContext(operation.getContext()),
+    )
+    return forward(operation)
   }
 }

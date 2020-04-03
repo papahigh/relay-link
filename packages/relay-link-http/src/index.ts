@@ -1,1 +1,1 @@
-export * from './httpLink';
+export * from './httpLink'

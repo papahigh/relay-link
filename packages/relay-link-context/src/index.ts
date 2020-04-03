@@ -1,37 +1,29 @@
-import {
-  ApolloLink,
-  Observable,
-  Operation,
-  NextLink,
-  GraphQLRequest,
-} from 'apollo-link';
+import { NextLink, Operation, RelayLink } from 'relay-link'
+import { Observable } from 'relay-runtime'
 
-export type ContextSetter = (
-  operation: GraphQLRequest,
-  prevContext: any,
-) => Promise<any> | any;
+export type ContextSetter = (operation: Operation, prevContext: any) => Promise<any> | any
 
-export function setContext(setter: ContextSetter): ApolloLink {
-  return new ApolloLink((operation: Operation, forward: NextLink) => {
-    const { ...request } = operation;
+export function setContext(setter: ContextSetter): RelayLink {
+  return new RelayLink((operation: Operation, forward: NextLink) => {
+    const { ...request } = operation
 
-    return new Observable(observer => {
-      let handle;
+    return Observable.create(sink => {
+      let handle
       Promise.resolve(request)
         .then(req => setter(req, operation.getContext()))
         .then(operation.setContext)
         .then(() => {
           handle = forward(operation).subscribe({
-            next: observer.next.bind(observer),
-            error: observer.error.bind(observer),
-            complete: observer.complete.bind(observer),
-          });
+            next: sink.next.bind(sink),
+            error: sink.error.bind(sink),
+            complete: sink.complete.bind(sink),
+          })
         })
-        .catch(observer.error.bind(observer));
+        .catch(sink.error.bind(sink))
 
       return () => {
-        if (handle) handle.unsubscribe();
-      };
-    });
-  });
+        if (handle) handle.unsubscribe()
+      }
+    })
+  })
 }

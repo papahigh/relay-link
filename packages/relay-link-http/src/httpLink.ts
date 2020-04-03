@@ -1,10 +1,9 @@
-/* tslint:disable */
-
-import { ApolloLink, Observable, RequestHandler, fromError } from 'apollo-link';
+import { RelayLink, fromError, OperationKind } from 'relay-link'
 import {
   serializeFetchParameter,
   selectURI,
   parseAndCheckHttpResponse,
+  readResponseBody,
   checkFetcher,
   selectHttpOptionsAndBody,
   createSignalIfSupported,
@@ -12,11 +11,10 @@ import {
   Body,
   HttpOptions,
   UriFunction as _UriFunction,
-} from 'apollo-link-http-common';
-import { DefinitionNode } from 'graphql';
+} from 'relay-link-http-common'
 
 export namespace HttpLink {
-  //TODO Would much rather be able to export directly
+  // tslint:disable-next-line:no-shadowed-variable
   export interface UriFunction extends _UriFunction {}
   export interface Options extends HttpOptions {
     /**
@@ -24,128 +22,98 @@ export namespace HttpLink {
      * will still use the method specified in fetchOptions.method (which defaults
      * to POST).
      */
-    useGETForQueries?: boolean;
+    useGETForQueries?: boolean
   }
 }
 
 // For backwards compatibility.
-export import FetchOptions = HttpLink.Options;
-export import UriFunction = HttpLink.UriFunction;
+export import FetchOptions = HttpLink.Options
+export import UriFunction = HttpLink.UriFunction
+import { Observable } from 'relay-runtime'
 
 export const createHttpLink = (linkOptions: HttpLink.Options = {}) => {
   let {
     uri = '/graphql',
     // use default global fetch if nothing passed in
     fetch: fetcher,
-    includeExtensions,
     useGETForQueries,
     ...requestOptions
-  } = linkOptions;
+  } = linkOptions
 
   // dev warnings to ensure fetch is present
-  checkFetcher(fetcher);
+  checkFetcher(fetcher)
 
   //fetcher is set here rather than the destructuring to ensure fetch is
   //declared before referencing it. Reference in the destructuring would cause
   //a ReferenceError
   if (!fetcher) {
-    fetcher = fetch;
+    fetcher = fetch
   }
 
   const linkConfig = {
-    http: { includeExtensions },
     options: requestOptions.fetchOptions,
     credentials: requestOptions.credentials,
     headers: requestOptions.headers,
-  };
+  }
 
-  return new ApolloLink(operation => {
-    let chosenURI = selectURI(operation, uri);
+  return new RelayLink(operation => {
+    let chosenURI = selectURI(operation, uri)
 
-    const context = operation.getContext();
+    const context = operation.getContext()
 
-    // `apollographql-client-*` headers are automatically set if a
-    // `clientAwareness` object is found in the context. These headers are
-    // set first, followed by the rest of the headers pulled from
-    // `context.headers`. If desired, `apollographql-client-*` headers set by
-    // the `clientAwareness` object can be overridden by
-    // `apollographql-client-*` headers set in `context.headers`.
-    const clientAwarenessHeaders = {};
-    if (context.clientAwareness) {
-      const { name, version } = context.clientAwareness;
-      if (name) {
-        clientAwarenessHeaders['apollographql-client-name'] = name;
-      }
-      if (version) {
-        clientAwarenessHeaders['apollographql-client-version'] = version;
-      }
-    }
-
-    const contextHeaders = { ...clientAwarenessHeaders, ...context.headers };
+    const contextHeaders = { ...context.headers }
 
     const contextConfig = {
-      http: context.http,
       options: context.fetchOptions,
       credentials: context.credentials,
       headers: contextHeaders,
-    };
+    }
 
     //uses fallback, link, and then context to build options
-    const { options, body } = selectHttpOptionsAndBody(
-      operation,
-      fallbackHttpConfig,
-      linkConfig,
-      contextConfig,
-    );
+    const { options, body } = selectHttpOptionsAndBody(operation, fallbackHttpConfig, linkConfig, contextConfig)
 
-    let controller;
+    let controller
     if (!(options as any).signal) {
-      const { controller: _controller, signal } = createSignalIfSupported();
-      controller = _controller;
-      if (controller) (options as any).signal = signal;
+      const { controller: _controller, signal } = createSignalIfSupported()
+      controller = _controller
+      if (controller) (options as any).signal = signal
     }
 
     // If requested, set method to GET if there are no mutations.
-    const definitionIsMutation = (d: DefinitionNode) => {
-      return d.kind === 'OperationDefinition' && d.operation === 'mutation';
-    };
-    if (
-      useGETForQueries &&
-      !operation.query.definitions.some(definitionIsMutation)
-    ) {
-      options.method = 'GET';
+    if (useGETForQueries && operation.operationKind !== OperationKind.MUTATION) {
+      options.method = 'GET'
     }
 
     if (options.method === 'GET') {
-      const { newURI, parseError } = rewriteURIForGET(chosenURI, body);
+      const { newURI, parseError } = rewriteURIForGET(chosenURI, body)
       if (parseError) {
-        return fromError(parseError);
+        return fromError(parseError)
       }
-      chosenURI = newURI;
+      chosenURI = newURI
     } else {
       try {
-        (options as any).body = serializeFetchParameter(body, 'Payload');
+        ;(options as any).body = serializeFetchParameter(body, 'Payload')
       } catch (parseError) {
-        return fromError(parseError);
+        return fromError(parseError)
       }
     }
 
-    return new Observable(observer => {
+    return Observable.create(sink => {
       fetcher(chosenURI, options)
         .then(response => {
-          operation.setContext({ response });
-          return response;
+          operation.setContext({ response })
+          return response
         })
-        .then(parseAndCheckHttpResponse(operation))
+        .then(parseAndCheckHttpResponse(operation, operation.getContext().bodyParser || readResponseBody))
         .then(result => {
           // we have data and can send it to back up the link chain
-          observer.next(result);
-          observer.complete();
-          return result;
+          sink.next(result)
+          sink.complete()
+          return result
         })
         .catch(err => {
           // fetch was cancelled so it's already been cleaned up in the unsubscribe
-          if (err.name === 'AbortError') return;
+          if (err.name === 'AbortError') return
           // if it is a network error, BUT there is graphql result info
           // fire the next observer before calling error
           // this gives apollo-client (and react-apollo) the `graphqlErrors` and `networErrors`
@@ -179,59 +147,47 @@ export const createHttpLink = (linkOptions: HttpLink.Options = {}) => {
             // status code of above would be a 401
             // in the UI you want to show data where you can, errors as data where you can
             // and use correct http status codes
-            observer.next(err.result);
+            sink.next(err.result)
           }
-          observer.error(err);
-        });
+          sink.error(err)
+        })
 
       return () => {
         // XXX support canceling this request
         // https://developers.google.com/web/updates/2017/09/abortable-fetch
-        if (controller) controller.abort();
-      };
-    });
-  });
-};
+        if (controller) controller.abort()
+      }
+    })
+  })
+}
 
 // For GET operations, returns the given URI rewritten with parameters, or a
 // parse error.
 function rewriteURIForGET(chosenURI: string, body: Body) {
   // Implement the standard HTTP GET serialization, plus 'extensions'. Note
   // the extra level of JSON serialization!
-  const queryParams = [];
+  const queryParams = []
   const addQueryParam = (key: string, value: string) => {
-    queryParams.push(`${key}=${encodeURIComponent(value)}`);
-  };
+    queryParams.push(`${key}=${encodeURIComponent(value)}`)
+  }
 
-  if ('query' in body) {
-    addQueryParam('query', body.query);
+  if (body.query) {
+    addQueryParam('query', body.query)
+  }
+  if (body.operationId) {
+    addQueryParam('operationId', body.operationId)
   }
   if (body.operationName) {
-    addQueryParam('operationName', body.operationName);
+    addQueryParam('operationName', body.operationName)
   }
   if (body.variables) {
-    let serializedVariables;
+    let serializedVariables
     try {
-      serializedVariables = serializeFetchParameter(
-        body.variables,
-        'Variables map',
-      );
+      serializedVariables = serializeFetchParameter(body.variables, 'Variables map')
     } catch (parseError) {
-      return { parseError };
+      return { parseError }
     }
-    addQueryParam('variables', serializedVariables);
-  }
-  if (body.extensions) {
-    let serializedExtensions;
-    try {
-      serializedExtensions = serializeFetchParameter(
-        body.extensions,
-        'Extensions map',
-      );
-    } catch (parseError) {
-      return { parseError };
-    }
-    addQueryParam('extensions', serializedExtensions);
+    addQueryParam('variables', serializedVariables)
   }
 
   // Reconstruct the URI with added query params.
@@ -241,21 +197,19 @@ function rewriteURIForGET(chosenURI: string, body: Body) {
   //     don't support URLSearchParams. Note that some browsers (and
   //     versions of whatwg-url) support URL but not URLSearchParams!
   let fragment = '',
-    preFragment = chosenURI;
-  const fragmentStart = chosenURI.indexOf('#');
+    preFragment = chosenURI
+  const fragmentStart = chosenURI.indexOf('#')
   if (fragmentStart !== -1) {
-    fragment = chosenURI.substr(fragmentStart);
-    preFragment = chosenURI.substr(0, fragmentStart);
+    fragment = chosenURI.substr(fragmentStart)
+    preFragment = chosenURI.substr(0, fragmentStart)
   }
-  const queryParamsPrefix = preFragment.indexOf('?') === -1 ? '?' : '&';
-  const newURI =
-    preFragment + queryParamsPrefix + queryParams.join('&') + fragment;
-  return { newURI };
+  const queryParamsPrefix = preFragment.indexOf('?') === -1 ? '?' : '&'
+  const newURI = preFragment + queryParamsPrefix + queryParams.join('&') + fragment
+  return { newURI }
 }
 
-export class HttpLink extends ApolloLink {
-  public requester: RequestHandler;
+export class HttpLink extends RelayLink {
   constructor(opts?: HttpLink.Options) {
-    super(createHttpLink(opts).request);
+    super(createHttpLink(opts).request)
   }
 }
