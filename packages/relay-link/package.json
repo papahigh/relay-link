@@ -1,6 +1,6 @@
 {
   "name": "relay-link",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Flexible, lightweight transport layer for Relay",
   "license": "MIT",
   "author": "Evans Hauser <evanshauser@gmail.com>",
@@ -50,15 +50,13 @@
   },
   "devDependencies": {
     "@types/jest": "^25.1.4",
-    "@types/node": "^12.12.31",
+    "@types/node": "^13.11.0",
     "@types/lodash.merge": "^4.6.6",
     "@types/relay-runtime": "^8.0.7",
     "graphql": "^14.6.0",
     "graphql-tag": "^2.10.3",
     "jest": "^25.2.1",
     "relay-runtime": "^9.0.0",
-    "rimraf": "^3.0.2",
-    "rollup": "^2.2.0",
     "ts-jest": "^25.2.1",
     "tslint": "^6.1.0",
     "typescript": "^3.8.3"

@@ -1,6 +1,6 @@
 {
   "name": "relay-link-cache",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Relay Link that provides LRU caching",
   "license": "MIT",
   "main": "./lib/index.js",
@@ -33,7 +33,7 @@
     "Cache"
   ],
   "dependencies": {
-    "relay-link": "1.0.0"
+    "relay-link": "1.0.2"
   },
   "peerDependencies": {
     "relay-runtime": "^9.0.0"

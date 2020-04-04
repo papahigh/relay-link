@@ -27,8 +27,7 @@ function getUniqueKey(request: RequestParameters, variables: Variables) {
   return JSON.stringify([id, name, text, stableStringify(variables)])
 }
 
-// private symbol is used for fast type check
-const operationSymbol = Symbol()
+const operationSymbol = Symbol.for('relay-link.operation')
 
 export function isOperation(val: any): val is Operation {
   return val && typeof val === 'object' && val[operationSymbol] === true

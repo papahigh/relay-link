@@ -193,11 +193,13 @@ export const selectHttpOptionsAndBody = (
 
   //The body depends on the http options
   const { operationId, operationName, variables, query } = operation
-  const body: Body = { operationName, variables }
+
+  const body: Body = {}
 
   if (operationId) body.operationId = operationId
-  if (operationName) body.operationName = operationName
+  else if (operationName) body.operationName = operationName
   if (query) body.query = typeof query === 'string' ? query : print(query)
+  if (variables) body.variables = variables
 
   return { options, body }
 }

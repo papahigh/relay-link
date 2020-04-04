@@ -50,7 +50,6 @@ export class ProgressLink extends RelayLink {
         return result
       }
     } else {
-      notifyListeners(0, totalLength)
       return await response.text().finally(() => notifyListeners(totalLength, totalLength))
     }
     return EMPTY

@@ -1,6 +1,6 @@
 {
   "name": "relay-link-progress",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Relay Link for tracking download progress",
   "license": "MIT",
   "main": "./lib/index.js",
@@ -32,7 +32,7 @@
     "watch": "tsc -w -p . & rollup -c -w"
   },
   "dependencies": {
-    "relay-link": "1.0.0",
+    "relay-link": "1.0.2",
     "tslib": "^1.11.1"
   },
   "peerDependencies": {

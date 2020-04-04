@@ -32,15 +32,9 @@ export interface Operation<TContext = Record<string, any>> {
   getContext(): TContext
 }
 
-export interface OperationResponseWithData extends GraphQLResponseWithData {
-  context?: Record<string, any>
-  response?: Response
-}
+export interface OperationResponseWithData extends GraphQLResponseWithData {}
 
-export interface OperationResponseWithoutData extends GraphQLResponseWithoutData {
-  context?: Record<string, any>
-  response?: Response
-}
+export interface OperationResponseWithoutData extends GraphQLResponseWithoutData {}
 
 export type OperationResponse = OperationResponseWithData | OperationResponseWithoutData
 

@@ -1,6 +1,6 @@
 {
   "name": "relay-link-ssr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Relay Link for Server-Side Rendering",
   "license": "MIT",
   "main": "./lib/index.js",
@@ -34,7 +34,7 @@
     "watch": "tsc -w -p . & rollup -c -w"
   },
   "dependencies": {
-    "relay-link": "1.0.0"
+    "relay-link": "1.0.2"
   },
   "peerDependencies": {
     "relay-runtime": "^9.0.0"

@@ -117,7 +117,7 @@ export abstract class RelayDisposableLink extends RelayLink {
   public abstract dispose(): void
 }
 
-export interface FactoryLinkOptions {
+export interface InitializingLinkOptions {
   factory: () => RelayDisposableLink
 }
 
@@ -125,7 +125,7 @@ export class InitializingLink extends RelayLink {
   private readonly factory: () => RelayDisposableLink
   private link?: RelayDisposableLink
 
-  public constructor(options: FactoryLinkOptions) {
+  public constructor(options: InitializingLinkOptions) {
     super()
     this.factory = options.factory
   }
@@ -159,6 +159,6 @@ export function execute(
   if (isOperation(requestOrOperation)) {
     return link.request(requestOrOperation) || empty()
   } else {
-    return link.execute(createOperation(requestOrOperation, variables, cacheConfig, uploadables)) || empty()
+    return link.request(createOperation(requestOrOperation, variables, cacheConfig, uploadables)) || empty()
   }
 }
