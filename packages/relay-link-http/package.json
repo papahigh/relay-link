@@ -1,6 +1,6 @@
 {
   "name": "relay-link-http",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "HTTP transport layer for Relay GraphQL client",
   "license": "MIT",
   "main": "./lib/index.js",
