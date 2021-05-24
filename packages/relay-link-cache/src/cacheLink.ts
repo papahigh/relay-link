@@ -56,7 +56,7 @@ export class CacheLink extends RelayLink {
       })
 
     const cached = this.cache.get(key, operation.variables)
-    if (cached) return Observable.from(cached)
+    if (cached) return Observable.from(cached) as RelayObservable<OperationResponse>
 
     return forward(operation).do({
       next: result => {

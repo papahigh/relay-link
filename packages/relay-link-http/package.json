@@ -1,6 +1,6 @@
 {
   "name": "relay-link-http",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "HTTP transport layer for Relay GraphQL client",
   "license": "MIT",
   "main": "./lib/index.js",
@@ -33,23 +33,23 @@
     "watch": "tsc -w -p . & rollup -c -w"
   },
   "dependencies": {
-    "relay-link": "1.0.2",
-    "relay-link-http-common": "1.0.1",
+    "relay-link": "1.0.3",
+    "relay-link-http-common": "1.0.2",
     "tslib": "^1.11.1"
   },
   "peerDependencies": {
-    "graphql": "^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0",
-    "relay-runtime": "^9.0.0"
+    "graphql": "^0.11.3 || ^0.12.3 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^15.5.0",
+    "relay-runtime": "^9.0.0 || ^10.0.0 || ^11.0.0"
   },
   "devDependencies": {
     "@types/jest": "^25.1.4",
-    "@types/relay-runtime": "^8.0.7",
+    "@types/relay-runtime": "^11.0.0",
     "fetch-mock": "^9.3.1",
-    "graphql": "^14.6.0",
-    "graphql-tag": "^2.10.3",
+    "graphql": "^15.5.0",
+    "graphql-tag": "^2.12.4",
     "jest": "^25.2.1",
     "object-to-querystring": "^1.0.8",
-    "relay-runtime": "^9.0.0",
+    "relay-runtime": "^11.0.2",
     "ts-jest": "^25.2.1",
     "tslint": "^6.1.0",
     "typescript": "^3.8.3"

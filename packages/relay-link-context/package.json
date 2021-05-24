@@ -1,6 +1,6 @@
 {
   "name": "relay-link-context",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "An easy way to set and cache context changes for Relay Link",
   "license": "MIT",
   "main": "./lib/index.js",
@@ -33,19 +33,19 @@
     "Context"
   ],
   "dependencies": {
-    "relay-link": "1.0.2",
+    "relay-link": "1.0.3",
     "tslib": "^1.11.1"
   },
   "peerDependencies": {
-    "relay-runtime": "^9.0.0"
+    "relay-runtime": "^9.0.0 || ^10.0.0 || ^11.0.0"
   },
   "devDependencies": {
     "@types/jest": "^25.1.4",
-    "@types/relay-runtime": "^8.0.7",
-    "graphql": "^14.6.0",
-    "graphql-tag": "^2.10.3",
+    "@types/relay-runtime": "^11.0.0",
+    "graphql": "^15.5.0",
+    "graphql-tag": "^2.12.4",
     "jest": "^25.2.1",
-    "relay-runtime": "^9.0.0",
+    "relay-runtime": "^11.0.2",
     "ts-jest": "^25.2.1",
     "tslint": "^6.1.0",
     "typescript": "^3.8.3"

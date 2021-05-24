@@ -1,4 +1,4 @@
-import { RelayLink, fromError, OperationKind } from 'relay-link'
+import { RelayLink, fromError, OperationKind, OperationResponse } from 'relay-link'
 import {
   serializeFetchParameter,
   selectURI,
@@ -107,7 +107,7 @@ export const createHttpLink = (linkOptions: HttpLink.Options = {}) => {
         .then(parseAndCheckHttpResponse(operation, operation.getContext().bodyParser || readResponseBody))
         .then(result => {
           // we have data and can send it to back up the link chain
-          sink.next(result)
+          sink.next(result as OperationResponse)
           sink.complete()
           return result
         })

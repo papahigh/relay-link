@@ -126,7 +126,7 @@ export class BatchHttpLink extends RelayLink {
           .then(parseAndCheckHttpResponse(operations, operations[0].getContext().bodyParser || readResponseBody))
           .then(result => {
             // we have data and can send it to back up the link chain
-            sink.next(result)
+            sink.next(result as OperationResponse[])
             sink.complete()
             return result
           })
