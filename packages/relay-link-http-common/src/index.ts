@@ -109,43 +109,45 @@ export type HttpResponseBody<TOperation extends Operation | Operation[]> = TOper
   ? GraphQLResponse
   : GraphQLResponse[]
 
-export const parseAndCheckHttpResponse = <TOperation extends Operation | Operation[]>(
-  operations: TOperation,
-  responseBodyParser: (response: Response) => Promise<string> = readResponseBody,
-) => (response: Response): Promise<HttpResponseBody<TOperation>> => {
-  return responseBodyParser(response)
-    .then(bodyText => {
-      try {
-        return JSON.parse(bodyText) as HttpResponseBody<TOperation>
-      } catch (err) {
-        const parseError = err as ServerParseError
-        parseError.name = 'ServerParseError'
-        parseError.response = response
-        parseError.statusCode = response.status
-        parseError.bodyText = bodyText
-        return Promise.reject(parseError)
-      }
-    })
-    .then((result: any) => {
-      if (response.status >= 300) {
-        //Network error
-        throwServerError(response, result, `Response not successful: Received status code ${response.status}`)
-      }
-      if (!Array.isArray(result) && !result.hasOwnProperty('data') && !result.hasOwnProperty('errors')) {
-        //Data error
-        throwServerError(
-          response,
-          result,
-          `Server response was missing for query '${
-            Array.isArray(operations)
-              ? (operations as Operation[]).map(op => op.operationName)
-              : (operations as Operation).operationName
-          }'.`,
-        )
-      }
-      return result
-    })
-}
+export const parseAndCheckHttpResponse =
+  <TOperation extends Operation | Operation[]>(
+    operations: TOperation,
+    responseBodyParser: (response: Response) => Promise<string> = readResponseBody,
+  ) =>
+  (response: Response): Promise<HttpResponseBody<TOperation>> => {
+    return responseBodyParser(response)
+      .then(bodyText => {
+        try {
+          return JSON.parse(bodyText) as HttpResponseBody<TOperation>
+        } catch (err) {
+          const parseError = err as ServerParseError
+          parseError.name = 'ServerParseError'
+          parseError.response = response
+          parseError.statusCode = response.status
+          parseError.bodyText = bodyText
+          return Promise.reject(parseError)
+        }
+      })
+      .then((result: any) => {
+        if (response.status >= 300) {
+          //Network error
+          throwServerError(response, result, `Response not successful: Received status code ${response.status}`)
+        }
+        if (!Array.isArray(result) && !result.hasOwnProperty('data') && !result.hasOwnProperty('errors')) {
+          //Data error
+          throwServerError(
+            response,
+            result,
+            `Server response was missing for query '${
+              Array.isArray(operations)
+                ? (operations as Operation[]).map(op => op.operationName)
+                : (operations as Operation).operationName
+            }'.`,
+          )
+        }
+        return result
+      })
+  }
 
 export const checkFetcher = (fetcher: WindowOrWorkerGlobalScope['fetch']) => {
   if (!fetcher && typeof fetch === 'undefined') {
